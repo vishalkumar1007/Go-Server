@@ -80,5 +80,5 @@ func main() {
 	}
 }
 
-// this is command to create a new SSH key pair
+// This is command to create a new SSH key pair
 // ssh-keygen -t rsa -b 4096 -C "vishalkumarnke93@gmail.com"
