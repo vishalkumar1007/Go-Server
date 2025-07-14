@@ -79,3 +79,5 @@ func main() {
 		log.Fatalf("Server failed to start: %v", err)
 	}
 }
+
+// ssh-keygen -t rsa -b 4096 -C "vishalkumarnke93@gmail.com"

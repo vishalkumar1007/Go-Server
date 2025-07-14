@@ -1,0 +1,20 @@
+stages:
+  - build
+
+# Run this job on every push
+build_job:
+  stage: build
+  script:
+    - echo "Running pipeline build..."
+    - echo "You can add your real build steps here."
+  only:
+    - branches  # excludes tags
+  when: on_success
+  tags: []  # if using runners with tags
+
+# Allow manual trigger from UI or API
+manual_trigger:
+  stage: build
+  script:
+    - echo "Manual pipeline run!"
+  when: manual
