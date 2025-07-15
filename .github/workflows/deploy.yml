@@ -13,34 +13,66 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Report Started Status to GitLab
+        env:
+          GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
+          GITLAB_PROJECT_ID: 71610967
+        run: |
+          curl --request POST \
+               --header "PRIVATE-TOKEN: $GITLAB_TOKEN" \
+               --form "state=running" \
+               --form "context=GitHub Actions Deploy" \
+               --form "description=GitHub Actions deployment started" \
+               --form "target_url=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+               "https://gitlab.com/api/v4/projects/$GITLAB_PROJECT_ID/statuses/${{ github.sha }}"
+
       - name: Simulated Deployment
+        id: deploy
         run: |
           echo "Simulating deployment..."
           sleep 2
           echo "Deployment complete."
+          # Uncomment next line to test failure scenario
+          # exit 1
 
-      - name: Report Status to GitLab
-        if: always()  # ensures this step runs even if deploy fails
+      - name: Report Success Status to GitLab
+        if: success()
         env:
           GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
-          GITHUB_STATUS: ${{ job.status }}
           GITLAB_PROJECT_ID: 71610967
         run: |
-          echo "Job status: $GITHUB_STATUS"
-
-          STATUS="success"
-          if [ "$GITHUB_STATUS" = "failure" ]; then
-            STATUS="failed"
-          elif [ "$GITHUB_STATUS" = "cancelled" ]; then
-            STATUS="canceled"
-          fi
-
-          echo "Sending status '$STATUS' to GitLab..."
-
           curl --request POST \
                --header "PRIVATE-TOKEN: $GITLAB_TOKEN" \
-               --form "state=$STATUS" \
-               --form "context=GitHub Actions" \
-               --form "description=GitHub Actions job $STATUS" \
+               --form "state=success" \
+               --form "context=GitHub Actions Deploy" \
+               --form "description=GitHub Actions deployment successful" \
+               --form "target_url=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+               "https://gitlab.com/api/v4/projects/$GITLAB_PROJECT_ID/statuses/${{ github.sha }}"
+
+      - name: Report Failure Status to GitLab
+        if: failure()
+        env:
+          GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
+          GITLAB_PROJECT_ID: 71610967
+        run: |
+          curl --request POST \
+               --header "PRIVATE-TOKEN: $GITLAB_TOKEN" \
+               --form "state=failed" \
+               --form "context=GitHub Actions Deploy" \
+               --form "description=GitHub Actions deployment failed" \
+               --form "target_url=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+               "https://gitlab.com/api/v4/projects/$GITLAB_PROJECT_ID/statuses/${{ github.sha }}"
+
+      - name: Report Cancelled Status to GitLab
+        if: cancelled()
+        env:
+          GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
+          GITLAB_PROJECT_ID: 71610967
+        run: |
+          curl --request POST \
+               --header "PRIVATE-TOKEN: $GITLAB_TOKEN" \
+               --form "state=canceled" \
+               --form "context=GitHub Actions Deploy" \
+               --form "description=GitHub Actions deployment cancelled" \
                --form "target_url=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
                "https://gitlab.com/api/v4/projects/$GITLAB_PROJECT_ID/statuses/${{ github.sha }}"
