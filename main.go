@@ -1,84 +1,63 @@
+// main.go
 package main
 
 import (
-	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
-	"time"
+	"os"
 )
 
-// HealthResponse represents the health check response check
-type HealthResponse struct {
-	Status    string    `json:"status"`
-	Timestamp time.Time `json:"timestamp"`
-	Service   string    `json:"service"`
+// Calculator struct for basic math operations
+type Calculator struct{}
+
+// Add performs addition
+func (c *Calculator) Add(a, b int) int {
+	return a + b
 }
 
-// DefaultResponse represents the default route response
-type DefaultResponse struct {
-	Message   string    `json:"message"`
-	Timestamp time.Time `json:"timestamp"`
-	Version   string    `json:"version"`
+// Divide performs division
+func (c *Calculator) Divide(a, b int) (int, error) {
+	if b == 0 {
+		return 0, fmt.Errorf("division by zero")
+	}
+	return a / b, nil
 }
 
+// Multiply performs multiplication
+func (c *Calculator) Multiply(a, b int) int {
+	return a * b
+}
+
+// IsEven checks if a number is even
+func IsEven(n int) bool {
+	return n%2 == 0
+}
+
+// HTTP handler for health check
 func healthHandler(w http.ResponseWriter, r *http.Request) {
-	response := HealthResponse{
-		Status:    "healthy",
-		Timestamp: time.Now(),
-		Service:   "go-server",
-	}
-
-	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		log.Printf("Error encoding health response: %v", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-	}
+	w.Write([]byte("OK"))
 }
 
-func defaultHandler(w http.ResponseWriter, r *http.Request) {
-	response := DefaultResponse{
-		Message:   "Welcome to the Go Server!",
-		Timestamp: time.Now(),
-		Version:   "1.0.0",
-	}
-
+// HTTP handler for calculator endpoint
+func calculateHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		log.Printf("Error encoding default response: %v", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-	}
+	w.Write([]byte(`{"message": "Calculator API is running", "status": "success"}`))
 }
 
 func main() {
-	// Create a new HTTP multiplexer
-	mux := http.NewServeMux()
+	// Set up HTTP routes
+	http.HandleFunc("/health", healthHandler)
+	http.HandleFunc("/calculate", calculateHandler)
 
-	// Register routes
-	mux.HandleFunc("/health", healthHandler)
-	mux.HandleFunc("/", defaultHandler)
-
-	// Server configuration
-	server := &http.Server{
-		Addr:         ":8080",
-		Handler:      mux,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
+	// Get port from environment or use default
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
 	}
 
-	// Start the server
-	log.Printf("Starting server on port 8080...")
-	log.Printf("Health check endpoint: http://localhost:8080/health")
-	log.Printf("Default endpoint: http://localhost:8080/")
-
-	if err := server.ListenAndServe(); err != nil {
-		log.Fatalf("Server failed to start: %v", err)
-	}
+	fmt.Printf("Server starting on port %s\n", port)
+	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
-
-// This is command to create a new SSH key pair
-// ssh-keygen -t rsa -b 4096 -C "vishalkumarnke93@gmail.com"

@@ -1,17 +1,25 @@
-name: Deploy and Report to GitLab
+name: Go Build, Test and Deploy to GitLab
 
 on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
-  deploy:
+  test-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
 
       - name: Report Started Status to GitLab
         env:
@@ -21,19 +29,48 @@ jobs:
           curl --request POST \
                --header "PRIVATE-TOKEN: $GITLAB_TOKEN" \
                --form "state=running" \
-               --form "context=GitHub Actions Deploy" \
-               --form "description=GitHub Actions deployment started" \
+               --form "context=GitHub Actions Go Pipeline" \
+               --form "description=Go build and test started" \
                --form "target_url=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
                "https://gitlab.com/api/v4/projects/$GITLAB_PROJECT_ID/statuses/${{ github.sha }}"
 
-      - name: Simulated Deployment
-        id: deploy
+      - name: Download Dependencies
+        run: go mod download
+
+      - name: Run Go Fmt Check
         run: |
-          echo "Simulating deployment..."
-          sleep 2
-          echo "Deployment complete."
-          # Uncomment next line to test failure scenario
-          # exit 1
+          if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
+            echo "Go code is not formatted properly:"
+            gofmt -s -l .
+            exit 1
+          fi
+
+      - name: Run Go Vet
+        run: go vet ./...
+
+      - name: Run Tests
+        run: |
+          echo "Running Go tests..."
+          go test -v ./...
+
+      - name: Build Application
+        run: |
+          echo "Building Go application..."
+          go build -o app main.go
+          echo "Build completed successfully!"
+
+      - name: Run Application Test
+        run: |
+          echo "Testing if application starts..."
+          timeout 10s ./app &
+          sleep 3
+          if pgrep -f "./app" > /dev/null; then
+            echo "Application started successfully"
+            pkill -f "./app"
+          else
+            echo "Application failed to start"
+            exit 1
+          fi
 
       - name: Report Success Status to GitLab
         if: success()
@@ -44,8 +81,8 @@ jobs:
           curl --request POST \
                --header "PRIVATE-TOKEN: $GITLAB_TOKEN" \
                --form "state=success" \
-               --form "context=GitHub Actions Deploy" \
-               --form "description=GitHub Actions deployment successful" \
+               --form "context=GitHub Actions Go Pipeline" \
+               --form "description=Go build and test successful" \
                --form "target_url=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
                "https://gitlab.com/api/v4/projects/$GITLAB_PROJECT_ID/statuses/${{ github.sha }}"
 
@@ -58,8 +95,8 @@ jobs:
           curl --request POST \
                --header "PRIVATE-TOKEN: $GITLAB_TOKEN" \
                --form "state=failed" \
-               --form "context=GitHub Actions Deploy" \
-               --form "description=GitHub Actions deployment failed" \
+               --form "context=GitHub Actions Go Pipeline" \
+               --form "description=Go build or test failed" \
                --form "target_url=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
                "https://gitlab.com/api/v4/projects/$GITLAB_PROJECT_ID/statuses/${{ github.sha }}"
 
@@ -72,7 +109,7 @@ jobs:
           curl --request POST \
                --header "PRIVATE-TOKEN: $GITLAB_TOKEN" \
                --form "state=canceled" \
-               --form "context=GitHub Actions Deploy" \
-               --form "description=GitHub Actions deployment cancelled" \
+               --form "context=GitHub Actions Go Pipeline" \
+               --form "description=Go pipeline was cancelled" \
                --form "target_url=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
                "https://gitlab.com/api/v4/projects/$GITLAB_PROJECT_ID/statuses/${{ github.sha }}"
