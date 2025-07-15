@@ -1,4 +1,4 @@
-name: Deploy to Server
+name: Deploy and Report to GitLab
 
 on:
   push:
@@ -13,11 +13,34 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Deploy to Server
+      - name: Simulated Deployment
         run: |
-          echo "🚀 Starting Deployment..."
-          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
-            cd /path/to/app
-            git pull origin main
-            systemctl restart your-app
-          EOF
+          echo "Simulating deployment..."
+          sleep 2
+          echo "Deployment complete."
+
+      - name: Report Status to GitLab
+        if: always()  # ensures this step runs even if deploy fails
+        env:
+          GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
+          GITHUB_STATUS: ${{ job.status }}
+          GITLAB_PROJECT_ID: 71610967
+        run: |
+          echo "Job status: $GITHUB_STATUS"
+
+          STATUS="success"
+          if [ "$GITHUB_STATUS" = "failure" ]; then
+            STATUS="failed"
+          elif [ "$GITHUB_STATUS" = "cancelled" ]; then
+            STATUS="canceled"
+          fi
+
+          echo "Sending status '$STATUS' to GitLab..."
+
+          curl --request POST \
+               --header "PRIVATE-TOKEN: $GITLAB_TOKEN" \
+               --form "state=$STATUS" \
+               --form "context=GitHub Actions" \
+               --form "description=GitHub Actions job $STATUS" \
+               --form "target_url=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+               "https://gitlab.com/api/v4/projects/$GITLAB_PROJECT_ID/statuses/${{ github.sha }}"
