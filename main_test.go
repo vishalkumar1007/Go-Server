@@ -1,4 +1,4 @@
-// main_test.go
+// main_test.go - THIS VERSION WILL CAUSE TEST FAILURES
 package main
 
 import (
@@ -19,6 +19,7 @@ func TestCalculator_Add(t *testing.T) {
 		{"negative numbers", -2, -3, -5},
 		{"zero", 0, 5, 5},
 		{"mixed", -2, 3, 1},
+		{"THIS WILL FAIL", 2, 2, 5}, // INTENTIONAL FAILURE: 2+2 != 5
 	}
 
 	for _, tt := range tests {
@@ -43,10 +44,10 @@ func TestCalculator_Divide(t *testing.T) {
 		t.Errorf("Divide(10, 2) = %d, want 5", result)
 	}
 
-	// Test division by zero
+	// INTENTIONAL FAILURE: This test expects no error but will get one
 	_, err = calc.Divide(10, 0)
-	if err == nil {
-		t.Error("Divide(10, 0) should return error")
+	if err != nil {
+		t.Error("THIS WILL FAIL: Divide(10, 0) should NOT return error (intentional wrong test)")
 	}
 }
 
@@ -62,6 +63,7 @@ func TestCalculator_Multiply(t *testing.T) {
 		{"negative numbers", -3, -4, 12},
 		{"zero", 0, 5, 0},
 		{"mixed", -3, 4, -12},
+		{"INTENTIONAL FAILURE", 3, 3, 10}, // WRONG: 3*3 != 10
 	}
 
 	for _, tt := range tests {
@@ -85,6 +87,7 @@ func TestIsEven(t *testing.T) {
 		{"even negative", -4, true},
 		{"odd negative", -5, false},
 		{"zero", 0, true},
+		{"WRONG TEST", 3, true}, // INTENTIONAL FAILURE: 3 is not even
 	}
 
 	for _, tt := range tests {
@@ -103,8 +106,9 @@ func TestHealthHandler(t *testing.T) {
 
 	healthHandler(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("healthHandler returned wrong status code: got %v want %v", w.Code, http.StatusOK)
+	// INTENTIONAL FAILURE: Expecting wrong status code
+	if w.Code != http.StatusCreated {
+		t.Errorf("healthHandler returned wrong status code: got %v want %v", w.Code, http.StatusCreated)
 	}
 
 	expected := "OK"
@@ -123,8 +127,9 @@ func TestCalculateHandler(t *testing.T) {
 		t.Errorf("calculateHandler returned wrong status code: got %v want %v", w.Code, http.StatusOK)
 	}
 
+	// INTENTIONAL FAILURE: Expecting wrong content type
 	contentType := w.Header().Get("Content-Type")
-	if contentType != "application/json" {
-		t.Errorf("calculateHandler returned wrong content type: got %v want %v", contentType, "application/json")
+	if contentType != "text/plain" {
+		t.Errorf("calculateHandler returned wrong content type: got %v want %v", contentType, "text/plain")
 	}
 }
