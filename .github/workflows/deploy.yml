@@ -1,6 +1,5 @@
 # .github/workflows/deploy.yml
-# GitHub Actions deployment workflow (This is what GitLab monitor tracks)
-
+# GitHub Actions deployment workflow - COMPLETE FIXED VERSION (5 minutes total)
 name: Go Build, Test and Deploy
 
 on:
@@ -72,90 +71,90 @@ jobs:
             exit 1
           fi
 
-      # Deployment Phase 1: Infrastructure
+      # Deployment Phase 1: Infrastructure (30 seconds)
       - name: Phase 1 - Infrastructure Setup
         run: |
           echo "🏗️ Phase 1: Setting up infrastructure..."
           echo "  ▶️ Provisioning cloud resources..."
-          sleep 30
+          sleep 10
           echo "  ▶️ Configuring load balancers..."
-          sleep 25
+          sleep 10
           echo "  ▶️ Setting up monitoring..."
-          sleep 20
+          sleep 10
           echo "  ✅ Infrastructure setup completed"
 
-      # Deployment Phase 2: Database
+      # Deployment Phase 2: Database (45 seconds)
       - name: Phase 2 - Database Operations
         run: |
           echo "🗄️ Phase 2: Database operations..."
           echo "  ▶️ Creating database backup..."
-          sleep 35
+          sleep 10
           echo "  ▶️ Running database migrations..."
-          sleep 40
+          sleep 15
           echo "  ▶️ Updating indexes..."
-          sleep 25
+          sleep 10
           echo "  ▶️ Verifying data integrity..."
-          sleep 30
+          sleep 10
           echo "  ✅ Database operations completed"
 
-      # Deployment Phase 3: Application Deployment
+      # Deployment Phase 3: Application Deployment (60 seconds)
       - name: Phase 3 - Application Deployment
         run: |
           echo "📦 Phase 3: Deploying application..."
           echo "  ▶️ Building Docker images..."
-          sleep 45
+          sleep 15
           echo "  ▶️ Pushing to container registry..."
-          sleep 35
+          sleep 15
           echo "  ▶️ Deploying to staging environment..."
-          sleep 50
+          sleep 15
           echo "  ▶️ Running integration tests..."
-          sleep 40
+          sleep 15
           echo "  ✅ Application deployment completed"
 
-      # Deployment Phase 4: Configuration
+      # Deployment Phase 4: Configuration (45 seconds)
       - name: Phase 4 - Configuration & Services
         run: |
           echo "⚙️ Phase 4: Configuring services..."
           echo "  ▶️ Updating configuration files..."
-          sleep 25
+          sleep 10
           echo "  ▶️ Restarting services..."
-          sleep 30
+          sleep 15
           echo "  ▶️ Configuring SSL certificates..."
-          sleep 20
+          sleep 10
           echo "  ▶️ Setting up monitoring alerts..."
-          sleep 25
+          sleep 10
           echo "  ✅ Configuration completed"
 
-      # Deployment Phase 5: Health Checks
+      # Deployment Phase 5: Health Checks (45 seconds)
       - name: Phase 5 - Health Checks & Validation
         run: |
           echo "🧪 Phase 5: Health checks and validation..."
           echo "  ▶️ Running health checks..."
-          sleep 35
+          sleep 10
           echo "  ▶️ Validating API endpoints..."
-          sleep 30
+          sleep 15
           echo "  ▶️ Testing external integrations..."
-          sleep 25
+          sleep 10
           echo "  ▶️ Performance testing..."
-          sleep 40
+          sleep 10
           echo "  ✅ All health checks passed"
 
-      # Deployment Phase 6: Go Live
+      # Deployment Phase 6: Go Live (45 seconds)
       - name: Phase 6 - Production Deployment
         run: |
           echo "🚀 Phase 6: Going live..."
           echo "  ▶️ Switching traffic to new deployment..."
-          sleep 20
-          echo "  ▶️ Monitoring initial traffic..."
-          sleep 25
-          echo "  ▶️ Confirming stable performance..."
-          sleep 30
-          echo "  ▶️ Cleaning up old deployments..."
           sleep 15
+          echo "  ▶️ Monitoring initial traffic..."
+          sleep 15
+          echo "  ▶️ Confirming stable performance..."
+          sleep 10
+          echo "  ▶️ Cleaning up old deployments..."
+          sleep 5
           echo "  🎉 Deployment completed successfully!"
 
       - name: Final Validation
         run: |
           echo "✅ GitHub Actions deployment workflow completed!"
-          echo "📊 Total deployment time: ~20+ minutes"
+          echo "📊 Total deployment time: ~5 minutes"
           echo "🔗 This workflow was monitored by GitLab CI"

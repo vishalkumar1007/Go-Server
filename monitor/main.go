@@ -1,5 +1,5 @@
 // monitor/main.go
-// GitHub Actions Real-Time Monitor for GitLab CI
+// GitHub Actions Real-Time Monitor for GitLab CI - COMPLETE FIXED VERSION
 package main
 
 import (
@@ -74,6 +74,7 @@ type GitHubActionsMonitor struct {
 	APILogFile      string
 	PollInterval    time.Duration
 	HTTPClient      *http.Client
+	LogsDir         string
 }
 
 // NewGitHubActionsMonitor creates a new monitor instance
@@ -85,45 +86,80 @@ func NewGitHubActionsMonitor() *GitHubActionsMonitor {
 		}
 	}
 
+	logsDir := "gitlab-logs"
 	return &GitHubActionsMonitor{
 		GitHubToken:     os.Getenv("GITHUB_TOKEN"),
 		GitHubRepo:      os.Getenv("GITHUB_REPO"),
 		GitLabToken:     os.Getenv("GITLAB_TOKEN"),
 		GitLabProjectID: os.Getenv("GITLAB_PROJECT_ID"),
 		CommitSHA:       os.Getenv("COMMIT_SHA"),
-		LogFile:         "gitlab-logs/github-deployment.log",
-		APILogFile:      "gitlab-logs/github-api-responses.log",
+		LogsDir:         logsDir,
+		LogFile:         filepath.Join(logsDir, "github-deployment.log"),
+		APILogFile:      filepath.Join(logsDir, "github-api-responses.log"),
 		PollInterval:    pollInterval,
 		HTTPClient:      &http.Client{Timeout: 30 * time.Second},
 	}
 }
 
-// ensureLogDir creates the logs directory
+// ensureLogDir creates the logs directory with proper permissions
 func (gm *GitHubActionsMonitor) ensureLogDir() error {
-	return os.MkdirAll(filepath.Dir(gm.LogFile), 0755)
-}
-
-// writeLog writes to both console and log file
-func (gm *GitHubActionsMonitor) writeLog(message string) error {
-	if err := gm.ensureLogDir(); err != nil {
-		return err
+	// Create directory with full permissions
+	if err := os.MkdirAll(gm.LogsDir, 0755); err != nil {
+		return fmt.Errorf("failed to create logs directory: %w", err)
 	}
 
+	// Verify directory exists and is writable
+	if info, err := os.Stat(gm.LogsDir); err != nil {
+		return fmt.Errorf("logs directory not accessible: %w", err)
+	} else if !info.IsDir() {
+		return fmt.Errorf("logs path exists but is not a directory")
+	}
+
+	// Test write permissions by creating a test file
+	testFile := filepath.Join(gm.LogsDir, "test_write.tmp")
+	if file, err := os.Create(testFile); err != nil {
+		return fmt.Errorf("logs directory not writable: %w", err)
+	} else {
+		file.Close()
+		os.Remove(testFile) // Clean up test file
+	}
+
+	return nil
+}
+
+// writeLog writes to both console and log file with better error handling
+func (gm *GitHubActionsMonitor) writeLog(message string) error {
 	timestamp := time.Now().Format("2006-01-02 15:04:05")
 	logEntry := fmt.Sprintf("[%s] %s\n", timestamp, message)
 
-	// Write to console (visible in GitLab CI)
+	// Always write to console first (visible in GitLab CI)
 	fmt.Print(logEntry)
 
-	// Write to log file (saved as artifact)
+	// Ensure log directory exists
+	if err := gm.ensureLogDir(); err != nil {
+		fmt.Printf("ERROR: Cannot create log directory: %v\n", err)
+		return err
+	}
+
+	// Write to log file with better error handling
 	file, err := os.OpenFile(gm.LogFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
+		fmt.Printf("ERROR: Cannot open log file %s: %v\n", gm.LogFile, err)
 		return err
 	}
 	defer file.Close()
 
-	_, err = file.WriteString(logEntry)
-	return err
+	if _, err := file.WriteString(logEntry); err != nil {
+		fmt.Printf("ERROR: Cannot write to log file: %v\n", err)
+		return err
+	}
+
+	// Force flush to disk
+	if err := file.Sync(); err != nil {
+		fmt.Printf("WARNING: Cannot sync log file: %v\n", err)
+	}
+
+	return nil
 }
 
 // writeAPILog saves GitHub API responses for debugging
@@ -134,6 +170,7 @@ func (gm *GitHubActionsMonitor) writeAPILog(endpoint string, response interface{
 
 	file, err := os.OpenFile(gm.APILogFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
+		fmt.Printf("ERROR: Cannot open API log file: %v\n", err)
 		return err
 	}
 	defer file.Close()
@@ -145,6 +182,9 @@ func (gm *GitHubActionsMonitor) writeAPILog(endpoint string, response interface{
 		timestamp, endpoint, string(jsonData), strings.Repeat("-", 80))
 
 	_, err = file.WriteString(logEntry)
+	if err != nil {
+		fmt.Printf("ERROR: Cannot write to API log file: %v\n", err)
+	}
 	return err
 }
 
@@ -415,6 +455,9 @@ func (gm *GitHubActionsMonitor) validateConfig() error {
 
 // startMonitoring starts the real-time monitoring process
 func (gm *GitHubActionsMonitor) startMonitoring() error {
+	// Test log file creation immediately
+	gm.writeLog("🧪 Testing log file creation...")
+
 	if err := gm.validateConfig(); err != nil {
 		return fmt.Errorf("configuration error: %w", err)
 	}
@@ -423,6 +466,8 @@ func (gm *GitHubActionsMonitor) startMonitoring() error {
 	gm.writeLog(fmt.Sprintf("📁 GitHub Repository: %s", gm.GitHubRepo))
 	gm.writeLog(fmt.Sprintf("🔗 Monitoring Commit: %s", gm.CommitSHA))
 	gm.writeLog(fmt.Sprintf("⏰ Polling every: %v", gm.PollInterval))
+	gm.writeLog(fmt.Sprintf("📝 Log file: %s", gm.LogFile))
+	gm.writeLog(fmt.Sprintf("📊 API log file: %s", gm.APILogFile))
 	gm.writeLog("👥 GitLab developers can see GitHub deployment status here")
 	gm.writeLog(strings.Repeat("=", 60))
 
@@ -430,51 +475,22 @@ func (gm *GitHubActionsMonitor) startMonitoring() error {
 	var lastRunID int
 	monitoringStart := time.Now()
 
-	// Wait for GitHub Actions to start
-	gm.writeLog("⏳ Waiting for GitHub Actions to start...")
+	// Main monitoring loop with regular logging
 	for {
-		runs, err := gm.getWorkflowRuns()
-		if err != nil {
-			if time.Since(monitoringStart) > 5*time.Minute {
-				return fmt.Errorf("timeout waiting for GitHub Actions: %w", err)
-			}
-			gm.writeLog(fmt.Sprintf("⏳ Still waiting... (%v)", err))
-			time.Sleep(gm.PollInterval)
-			continue
-		}
+		currentTime := time.Now()
+		elapsed := currentTime.Sub(monitoringStart)
 
-		// Find our commit's workflow run
-		var targetRun *GitHubWorkflowRun
-		for _, run := range runs.WorkflowRuns {
-			if run.HeadSHA == gm.CommitSHA {
-				detailed, err := gm.getSpecificWorkflowRun(run.ID)
-				if err == nil {
-					targetRun = detailed
-					break
-				}
-			}
-		}
+		// Log every 10 seconds regardless of status changes
+		gm.writeLog(fmt.Sprintf("⏰ Monitoring tick - Elapsed: %v", elapsed.Round(time.Second)))
 
-		if targetRun != nil {
-			gm.writeLog(fmt.Sprintf("🎯 Found GitHub Actions workflow! Run ID: %d", targetRun.ID))
-			break
-		}
-
-		if time.Since(monitoringStart) > 5*time.Minute {
-			return fmt.Errorf("timeout: no workflow found for commit %s", gm.CommitSHA)
-		}
-
-		time.Sleep(gm.PollInterval)
-	}
-
-	// Main monitoring loop
-	for {
 		runs, err := gm.getWorkflowRuns()
 		if err != nil {
 			gm.writeLog(fmt.Sprintf("❌ Error fetching workflow runs: %v", err))
 			time.Sleep(gm.PollInterval)
 			continue
 		}
+
+		gm.writeLog(fmt.Sprintf("📊 Found %d workflow runs", runs.TotalCount))
 
 		var currentRun *GitHubWorkflowRun
 		for _, run := range runs.WorkflowRuns {
@@ -488,25 +504,27 @@ func (gm *GitHubActionsMonitor) startMonitoring() error {
 		}
 
 		if currentRun == nil {
+			gm.writeLog(fmt.Sprintf("⏳ No workflow found for commit %s yet...", gm.CommitSHA))
 			time.Sleep(gm.PollInterval)
 			continue
 		}
 
-		// Check for status changes
+		// Always log current status
 		statusChanged := currentRun.Status != lastStatus ||
 			currentRun.Conclusion != lastConclusion ||
 			currentRun.ID != lastRunID
 
+		symbol := gm.getStatusSymbol(currentRun.Status, currentRun.Conclusion)
+		statusMsg := fmt.Sprintf("%s GitHub Actions: %s", symbol, strings.ToUpper(currentRun.Status))
+
+		if currentRun.Status == "completed" && currentRun.Conclusion != "" {
+			statusMsg += fmt.Sprintf(" (%s)", strings.ToUpper(currentRun.Conclusion))
+		}
+
+		statusMsg += fmt.Sprintf(" | Run ID: %d", currentRun.ID)
+		gm.writeLog(statusMsg)
+
 		if statusChanged {
-			symbol := gm.getStatusSymbol(currentRun.Status, currentRun.Conclusion)
-			statusMsg := fmt.Sprintf("%s GitHub Actions: %s", symbol, strings.ToUpper(currentRun.Status))
-
-			if currentRun.Status == "completed" && currentRun.Conclusion != "" {
-				statusMsg += fmt.Sprintf(" (%s)", strings.ToUpper(currentRun.Conclusion))
-			}
-
-			statusMsg += fmt.Sprintf(" | Run ID: %d", currentRun.ID)
-			gm.writeLog(statusMsg)
 			gm.writeLog(fmt.Sprintf("🔗 GitHub URL: %s", currentRun.HTMLURL))
 
 			// Log detailed status
@@ -528,11 +546,6 @@ func (gm *GitHubActionsMonitor) startMonitoring() error {
 			lastStatus = currentRun.Status
 			lastConclusion = currentRun.Conclusion
 			lastRunID = currentRun.ID
-		} else if currentRun.Status == "in_progress" {
-			// Periodic updates during long runs
-			gm.writeLog(fmt.Sprintf("🔄 GitHub Actions still running... (%v elapsed)",
-				time.Since(monitoringStart).Round(time.Second)))
-			gm.logDetailedStatus(currentRun)
 		}
 
 		// Handle completion
@@ -557,6 +570,12 @@ func (gm *GitHubActionsMonitor) startMonitoring() error {
 			gm.writeLog("🏁 Real-time monitoring completed!")
 			gm.writeLog("📊 Complete GitHub API responses saved to: " + gm.APILogFile)
 			gm.writeLog("📋 This log available as GitLab CI artifact")
+			break
+		}
+
+		// Add timeout check
+		if elapsed > 45*time.Minute {
+			gm.writeLog("⏰ Monitoring timeout reached (45 minutes)")
 			break
 		}
 
