@@ -1,6 +1,3 @@
-# .gitlab-ci.yml
-# GitLab CI pipeline that monitors GitHub Actions in real-time
-
 stages:
   - build
   - test
@@ -40,38 +37,40 @@ monitor-github-actions:
   stage: monitor-github-actions
   image: golang:1.21-alpine
   variables:
-    GITHUB_TOKEN: $GITHUB_API_TOKEN
-    GITLAB_TOKEN: $GITLAB_API_TOKEN
-    COMMIT_SHA: $CI_COMMIT_SHA
+    GITHUB_TOKEN: ${GITHUB_API_TOKEN}
+    GITLAB_TOKEN: ${GITLAB_API_TOKEN}
+    COMMIT_SHA: ${CI_COMMIT_SHA}
     GITHUB_REPO: "vishalkumar1007/Go-Server"
     GITLAB_PROJECT_ID: "71610967"
     POLL_INTERVAL: "10s"
-  script:
-    - echo "🚀 Starting GitHub Actions Real-Time Monitor from GitLab CI"
-    - echo "📁 Monitoring GitHub Repository: $GITHUB_REPO"
-    - echo "🔗 Commit SHA: $CI_COMMIT_SHA"
-    - echo "📍 This monitor runs on GitLab CI to track GitHub Actions"
-    - echo "👥 GitLab developers will see GitHub deployment status here"
-    - echo "=================================================="
+  before_script:
     - mkdir -p gitlab-logs
-    - echo "🔨 Building GitHub Actions monitor..."
-    - cd monitor
-    - go mod init github-actions-monitor || true
-    - go mod tidy
-    - go build -o ../gitlab-logs/github-monitor main.go
-    - cd ..
-    - echo "👁️ Starting real-time GitHub Actions monitoring..."
-    - echo "⏰ Will check GitHub Actions every 10 seconds"
-    - echo "📊 Logs will show live deployment progress"
-    - echo "--------------------------------------------------"
-    - ./gitlab-logs/github-monitor
-    - echo "=================================================="
-    - echo "📋 GitHub Actions Monitoring Complete!"
-    - echo "📄 Check the logs below for full deployment details:"
-    - echo "--------------------------------------------------"
-    - cat gitlab-logs/github-deployment.log || echo "No deployment log found"
+  script:
+    - |
+      echo "🚀 Starting GitHub Actions Real-Time Monitor from GitLab CI"
+      echo "📁 Monitoring GitHub Repository: ${GITHUB_REPO}"
+      echo "🔗 Commit SHA: ${CI_COMMIT_SHA}"
+      echo "📍 This monitor runs on GitLab CI to track GitHub Actions"
+      echo "👥 GitLab developers will see GitHub deployment status here"
+      echo "=================================================="
+      echo "🔨 Building GitHub Actions monitor..."
+      cd monitor
+      go mod init github-actions-monitor || true
+      go mod tidy
+      go build -o ../gitlab-logs/github-monitor main.go
+      cd ..
+      echo "👁️ Starting real-time GitHub Actions monitoring..."
+      echo "⏰ Will check GitHub Actions every 10 seconds"
+      echo "📊 Logs will show live deployment progress"
+      echo "--------------------------------------------------"
+      ./gitlab-logs/github-monitor
+      echo "=================================================="
+      echo "📋 GitHub Actions Monitoring Complete!"
+      echo "📄 Check the logs below for full deployment details:"
+      echo "--------------------------------------------------"
+      cat gitlab-logs/github-deployment.log || echo "No deployment log found"
   artifacts:
-    name: "github-actions-logs-$CI_COMMIT_SHORT_SHA"
+    name: "github-actions-logs-${CI_COMMIT_SHORT_SHA}"
     paths:
       - gitlab-logs/
     reports:
