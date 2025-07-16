@@ -45,20 +45,18 @@ monitor-github-actions:
     POLL_INTERVAL: "10s"
   before_script:
     - echo "🔍 Debug Information:"
-    - echo "Working directory: $(pwd)"
-    - echo "User: $(whoami)"
-    - echo "User ID: $(id)"
-    - echo "Available space: $(df -h .)"
+    - echo "Working directory $(pwd)"
+    - echo "User $(whoami)"
+    - echo "User ID $(id)"
+    - echo "Available space $(df -h .)"
     - echo "Environment variables:"
-    - echo "  GITHUB_REPO: ${GITHUB_REPO}"
-    - echo "  GITLAB_PROJECT_ID: ${GITLAB_PROJECT_ID}"
-    - echo "  COMMIT_SHA: ${CI_COMMIT_SHA}"
-    - echo "  POLL_INTERVAL: ${POLL_INTERVAL}"
+    - echo "  GITHUB_REPO ${GITHUB_REPO}"
+    - echo "  GITLAB_PROJECT_ID ${GITLAB_PROJECT_ID}"
+    - echo "  COMMIT_SHA ${CI_COMMIT_SHA}"
+    - echo "  POLL_INTERVAL ${POLL_INTERVAL}"
     - echo "Checking if tokens are set (length only for security):"
-    - echo "  GITHUB_TOKEN length: ${#GITHUB_TOKEN}"
-    - echo "  GITLAB_TOKEN length: ${#GITLAB_TOKEN}"
-    
-    # Create and test directory permissions
+    - echo "  GITHUB_TOKEN length ${#GITHUB_TOKEN}"
+    - echo "  GITLAB_TOKEN length ${#GITLAB_TOKEN}"
     - echo "📁 Testing directory creation and permissions:"
     - mkdir -p gitlab-logs
     - ls -la gitlab-logs/
@@ -75,34 +73,26 @@ monitor-github-actions:
     - ls -la ../gitlab-logs/github-monitor
     - echo "✅ Go compilation successful"
     - cd ..
-    
   script:
+    - echo "🚀 Starting GitHub Actions Real-Time Monitor from GitLab CI"
+    - echo "📁 Monitoring GitHub Repository ${GITHUB_REPO}"
+    - echo "🔗 Commit SHA ${CI_COMMIT_SHA}"
+    - echo "📍 This monitor runs on GitLab CI to track GitHub Actions"
+    - echo "👥 GitLab developers will see GitHub deployment status here"
+    - echo "=================================================="
+    - echo "📋 Initial directory contents:"
+    - ls -la gitlab-logs/
+    - echo "👁️ Starting real-time GitHub Actions monitoring..."
+    - echo "⏰ Will check GitHub Actions every 10 seconds"
+    - echo "📊 Logs will show live deployment progress"
+    - echo "--------------------------------------------------"
+    - ./gitlab-logs/github-monitor 2>&1 | tee -a gitlab-logs/monitor-output.log
+    - echo "=================================================="
+    - echo "📋 GitHub Actions Monitoring Complete!"
+    - echo "📄 Final directory contents:"
+    - ls -la gitlab-logs/
+    - echo "📄 Checking log files:"
     - |
-      echo "🚀 Starting GitHub Actions Real-Time Monitor from GitLab CI"
-      echo "📁 Monitoring GitHub Repository: ${GITHUB_REPO}"
-      echo "🔗 Commit SHA: ${CI_COMMIT_SHA}"
-      echo "📍 This monitor runs on GitLab CI to track GitHub Actions"
-      echo "👥 GitLab developers will see GitHub deployment status here"
-      echo "=================================================="
-      
-      # Show initial directory state
-      echo "📋 Initial directory contents:"
-      ls -la gitlab-logs/
-      
-      echo "👁️ Starting real-time GitHub Actions monitoring..."
-      echo "⏰ Will check GitHub Actions every 10 seconds"
-      echo "📊 Logs will show live deployment progress"
-      echo "--------------------------------------------------"
-      
-      # Run with detailed output
-      ./gitlab-logs/github-monitor 2>&1 | tee -a gitlab-logs/monitor-output.log
-      
-      echo "=================================================="
-      echo "📋 GitHub Actions Monitoring Complete!"
-      echo "📄 Final directory contents:"
-      ls -la gitlab-logs/
-      
-      echo "📄 Checking log files:"
       if [ -f "gitlab-logs/github-deployment.log" ]; then
         echo "✅ Main log file exists ($(wc -l < gitlab-logs/github-deployment.log) lines)"
         echo "📄 Last 10 lines of deployment log:"
@@ -110,19 +100,18 @@ monitor-github-actions:
       else
         echo "❌ Main log file not found"
       fi
-      
+    - |
       if [ -f "gitlab-logs/github-api-responses.log" ]; then
         echo "✅ API log file exists ($(wc -c < gitlab-logs/github-api-responses.log) bytes)"
       else
         echo "❌ API log file not found"
       fi
-      
+    - |
       if [ -f "gitlab-logs/monitor-output.log" ]; then
         echo "✅ Monitor output log exists ($(wc -l < gitlab-logs/monitor-output.log) lines)"
       else
         echo "❌ Monitor output log not found"
       fi
-      
   artifacts:
     name: "github-actions-logs-${CI_COMMIT_SHORT_SHA}"
     paths:
