@@ -3,14 +3,13 @@
 
 stages:
   - build
-  - test  
+  - test
   - monitor-github-actions
 
 variables:
   GITHUB_REPO: "vishalkumar1007/Go-Server"
   GITLAB_PROJECT_ID: "71610967"
 
-# Build stage - Build your Go application
 build-app:
   stage: build
   image: golang:1.21-alpine
@@ -26,7 +25,6 @@ build-app:
   only:
     - main
 
-# Test stage - Run your Go tests  
 test-app:
   stage: test
   image: golang:1.21-alpine
@@ -38,13 +36,12 @@ test-app:
   only:
     - main
 
-# GitHub Actions Monitor - Real-time tracking
 monitor-github-actions:
   stage: monitor-github-actions
   image: golang:1.21-alpine
   variables:
-    GITHUB_TOKEN: $GITHUB_API_TOKEN      # Set in GitLab CI/CD Variables
-    GITLAB_TOKEN: $GITLAB_API_TOKEN      # Set in GitLab CI/CD Variables  
+    GITHUB_TOKEN: $GITHUB_API_TOKEN
+    GITLAB_TOKEN: $GITLAB_API_TOKEN
     COMMIT_SHA: $CI_COMMIT_SHA
     GITHUB_REPO: "vishalkumar1007/Go-Server"
     GITLAB_PROJECT_ID: "71610967"
@@ -56,32 +53,23 @@ monitor-github-actions:
     - echo "📍 This monitor runs on GitLab CI to track GitHub Actions"
     - echo "👥 GitLab developers will see GitHub deployment status here"
     - echo "=================================================="
-    
-    # Create GitLab logs directory
     - mkdir -p gitlab-logs
-    
-    # Build the GitHub Actions monitor
     - echo "🔨 Building GitHub Actions monitor..."
     - cd monitor
-    - go mod init github-actions-monitor 2>/dev/null || true
+    - go mod init github-actions-monitor || true
     - go mod tidy
     - go build -o ../gitlab-logs/github-monitor main.go
     - cd ..
-    
-    # Start real-time GitHub Actions monitoring
     - echo "👁️ Starting real-time GitHub Actions monitoring..."
     - echo "⏰ Will check GitHub Actions every 10 seconds"
     - echo "📊 Logs will show live deployment progress"
     - echo "--------------------------------------------------"
     - ./gitlab-logs/github-monitor
-    
-    # Show final summary
     - echo "=================================================="
     - echo "📋 GitHub Actions Monitoring Complete!"
     - echo "📄 Check the logs below for full deployment details:"
     - echo "--------------------------------------------------"
-    - cat gitlab-logs/github-deployment.log 2>/dev/null || echo "No deployment log found"
-    
+    - cat gitlab-logs/github-deployment.log || echo "No deployment log found"
   artifacts:
     name: "github-actions-logs-$CI_COMMIT_SHORT_SHA"
     paths:
@@ -90,18 +78,10 @@ monitor-github-actions:
       junit: gitlab-logs/*.xml
     expire_in: 30 days
     when: always
-    
-  # Allow up to 45 minutes for long deployments
   timeout: 45m
-  
-  # Run only on main branch pushes
   only:
     - main
-    
-  # Can be set to 'on_success' for automatic trigger after tests pass
   when: manual
-  
-  # Retry once if network issues
   retry:
     max: 1
     when:
