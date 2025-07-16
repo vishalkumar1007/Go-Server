@@ -44,7 +44,6 @@ monitor-github-actions:
     GITLAB_PROJECT_ID: "71610967"
     POLL_INTERVAL: "10s"
   before_script:
-    # Debug environment and permissions
     - echo "🔍 Debug Information:"
     - echo "Working directory: $(pwd)"
     - echo "User: $(whoami)"
@@ -68,8 +67,6 @@ monitor-github-actions:
     - cat gitlab-logs/test-file.txt
     - rm gitlab-logs/test-file.txt
     - echo "✅ Directory and file operations work correctly"
-    
-    # Test Go compilation
     - echo "🔨 Testing Go compilation:"
     - cd monitor
     - go mod init github-actions-monitor || true
