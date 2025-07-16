@@ -1,0 +1,109 @@
+# .gitlab-ci.yml
+# GitLab CI pipeline that monitors GitHub Actions in real-time
+
+stages:
+  - build
+  - test  
+  - monitor-github-actions
+
+variables:
+  GITHUB_REPO: "vishalkumar1007/Go-Server"
+  GITLAB_PROJECT_ID: "71610967"
+
+# Build stage - Build your Go application
+build-app:
+  stage: build
+  image: golang:1.21-alpine
+  script:
+    - echo "🏗️ Building Go application on GitLab..."
+    - go mod download
+    - go build -o app main.go
+    - echo "✅ Build completed successfully"
+  artifacts:
+    paths:
+      - app
+    expire_in: 1 hour
+  only:
+    - main
+
+# Test stage - Run your Go tests  
+test-app:
+  stage: test
+  image: golang:1.21-alpine
+  script:
+    - echo "🧪 Running Go tests on GitLab..."
+    - go mod download
+    - go test -v ./...
+    - echo "✅ All tests passed"
+  only:
+    - main
+
+# GitHub Actions Monitor - Real-time tracking
+monitor-github-actions:
+  stage: monitor-github-actions
+  image: golang:1.21-alpine
+  variables:
+    GITHUB_TOKEN: $GITHUB_API_TOKEN      # Set in GitLab CI/CD Variables
+    GITLAB_TOKEN: $GITLAB_API_TOKEN      # Set in GitLab CI/CD Variables  
+    COMMIT_SHA: $CI_COMMIT_SHA
+    GITHUB_REPO: "vishalkumar1007/Go-Server"
+    GITLAB_PROJECT_ID: "71610967"
+    POLL_INTERVAL: "10s"
+  script:
+    - echo "🚀 Starting GitHub Actions Real-Time Monitor from GitLab CI"
+    - echo "📁 Monitoring GitHub Repository: $GITHUB_REPO"
+    - echo "🔗 Commit SHA: $CI_COMMIT_SHA"
+    - echo "📍 This monitor runs on GitLab CI to track GitHub Actions"
+    - echo "👥 GitLab developers will see GitHub deployment status here"
+    - echo "=================================================="
+    
+    # Create GitLab logs directory
+    - mkdir -p gitlab-logs
+    
+    # Build the GitHub Actions monitor
+    - echo "🔨 Building GitHub Actions monitor..."
+    - cd monitor
+    - go mod init github-actions-monitor 2>/dev/null || true
+    - go mod tidy
+    - go build -o ../gitlab-logs/github-monitor main.go
+    - cd ..
+    
+    # Start real-time GitHub Actions monitoring
+    - echo "👁️ Starting real-time GitHub Actions monitoring..."
+    - echo "⏰ Will check GitHub Actions every 10 seconds"
+    - echo "📊 Logs will show live deployment progress"
+    - echo "--------------------------------------------------"
+    - ./gitlab-logs/github-monitor
+    
+    # Show final summary
+    - echo "=================================================="
+    - echo "📋 GitHub Actions Monitoring Complete!"
+    - echo "📄 Check the logs below for full deployment details:"
+    - echo "--------------------------------------------------"
+    - cat gitlab-logs/github-deployment.log 2>/dev/null || echo "No deployment log found"
+    
+  artifacts:
+    name: "github-actions-logs-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - gitlab-logs/
+    reports:
+      junit: gitlab-logs/*.xml
+    expire_in: 30 days
+    when: always
+    
+  # Allow up to 45 minutes for long deployments
+  timeout: 45m
+  
+  # Run only on main branch pushes
+  only:
+    - main
+    
+  # Can be set to 'on_success' for automatic trigger after tests pass
+  when: manual
+  
+  # Retry once if network issues
+  retry:
+    max: 1
+    when:
+      - runner_system_failure
+      - api_failure

@@ -37,7 +37,7 @@ func IsEven(n int) bool {
 // HTTP handler for health check
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("OK"))
+	w.Write([]byte("Server is live"))
 }
 
 // HTTP handler for calculator endpoint
