@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-// TestCalculatorAdd tests the Add function
+// TestCalculatorAdd tests the Add functions
 func TestCalculatorAdd(t *testing.T) {
 	calc := &Calculator{}
 
