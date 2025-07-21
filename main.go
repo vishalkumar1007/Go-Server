@@ -1,6 +1,8 @@
 // main.go
 package main
 
+// add check
+
 import (
 	"fmt"
 	"log"
