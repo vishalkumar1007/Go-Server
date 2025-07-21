@@ -1,5 +1,5 @@
 // monitor/main.go
-// GitHub Actions Real-Time Monitor for GitLab CI - COMPLETE FIXED VERSION
+// GitHub Actions Real-Time Monitor for GitLab CI - COMPLETE VERSION-1.0.1
 package main
 
 import (
