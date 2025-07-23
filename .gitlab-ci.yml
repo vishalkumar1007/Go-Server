@@ -19,10 +19,10 @@ build:
   stage: build
   image: golang:${GO_VERSION}
   script:
-    - echo "🏗️ Building application..."
+    - 'echo "🏗️ Building application..."'
     - go mod download
     - go build -o app main.go
-    - echo "✅ Build completed"
+    - 'echo "✅ Build completed"'
   artifacts:
     paths:
       - app
@@ -39,11 +39,11 @@ test:
   stage: test
   image: golang:${GO_VERSION}
   script:
-    - echo "🧪 Running tests..."
+    - 'echo "🧪 Running tests..."'
     - go mod download
     - go vet ./...
     - go test -v ./...
-    - echo "✅ All tests passed"
+    - 'echo "✅ All tests passed"'
   only:
     - main
     - develop
@@ -54,14 +54,14 @@ test:
 .deploy_template: &deploy_template
   image: golang:${GO_VERSION}
   script:
-    - echo "🚀 Triggering GitHub Actions deployment to ${ENVIRONMENT^^}..."
-    - echo "📡 Triggering GitHub Workflow Dispatch via API..."
+    - 'echo "🚀 Triggering GitHub Actions deployment to ${ENVIRONMENT^^}..."'
+    - 'echo "📡 Triggering GitHub Workflow Dispatch via API..."'
     - |
       curl -s -X POST "https://api.github.com/repos/${GITHUB_REPO}/actions/workflows/deploy.yml/dispatches" \
         -H "Authorization: Bearer ${GITHUB_TOKEN}" \
         -H "Accept: application/vnd.github+json" \
         -d "{\"ref\":\"${BRANCH_NAME}\", \"inputs\":{\"environment\":\"${ENVIRONMENT}\"}}"
-    - echo "🖥️ Monitoring GitHub Actions workflow for branch: ${BRANCH_NAME}"
+    - 'echo "🖥️ Monitoring GitHub Actions workflow for branch: ${BRANCH_NAME}"'
     - cd monitor
     - go mod init github-monitor 2>/dev/null || true
     - go mod tidy
@@ -72,9 +72,17 @@ test:
     - export GITLAB_PROJECT_ID="${GITLAB_PROJECT_ID}"
     - export BRANCH_NAME="${BRANCH_NAME}"
     - export ENVIRONMENT="${ENVIRONMENT}"
-    - export POLL_INTERVAL="10s"
-    - echo "🔍 Starting real-time GitHub Actions monitoring..."
+    - 'export POLL_INTERVAL="10s"'
+    - 'echo "🔍 Starting real-time GitHub Actions monitoring..."'
     - ./github-monitor
+  artifacts:
+    when: always
+    paths:
+      - monitor/gitlab-logs/
+    expire_in: 1 week
+  when: manual
+  only:
+    - main
 
 # Manual Deploy: DEV
 deploy-dev:
@@ -83,7 +91,6 @@ deploy-dev:
     ENVIRONMENT: "dev"
     BRANCH_NAME: "dev"
   <<: *deploy_template
-
 
 # Manual Deploy: QA
 deploy-qa:
@@ -100,6 +107,11 @@ deploy-prod:
     ENVIRONMENT: "prod"
     BRANCH_NAME: "main"
   <<: *deploy_template
+  artifacts:
+    when: always
+    paths:
+      - monitor/gitlab-logs/
+    expire_in: 1 month
 
 # Manual Deploy: NEXT
 deploy-next:
@@ -108,3 +120,13 @@ deploy-next:
     ENVIRONMENT: "next"
     BRANCH_NAME: "next"
   <<: *deploy_template
+
+# Optional: Cleanup job
+cleanup:
+  stage: .post
+  image: alpine:latest
+  script:
+    - 'echo "🧹 Cleaning up temporary files..."'
+    - rm -rf /tmp/github-monitor-*
+  when: always
+  allow_failure: true
