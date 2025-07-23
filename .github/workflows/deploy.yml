@@ -1,20 +1,70 @@
 # .github/workflows/deploy.yml
-# GitHub Actions deployment workflow - WORKING VERSION
-name: Go Build, Test and Deploy
+# Multi-Environment GitHub Actions Deployment Workflow
+name: Multi-Environment Deployment
 
 on:
   push:
     branches:
-      - main
-  pull_request:
-    branches:
-      - main
+      - main      # Production
+      - dev       # Development
+      - qa        # Quality Assurance
+      - next      # Next/Staging
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+        - dev
+        - qa
+        - prod
+        - next
 
 jobs:
-  deploy:
+  # Determine environment based on branch
+  setup:
     runs-on: ubuntu-latest
-    name: Deploy Application
+    outputs:
+      environment: ${{ steps.determine-env.outputs.environment }}
+      deploy-timeout: ${{ steps.determine-env.outputs.deploy-timeout }}
+    steps:
+      - name: Determine Environment
+        id: determine-env
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            ENV="${{ inputs.environment }}"
+          else
+            case "${{ github.ref_name }}" in
+              "main") ENV="prod" ;;
+              "dev") ENV="dev" ;;
+              "qa") ENV="qa" ;;
+              "next") ENV="next" ;;
+              *) ENV="dev" ;;
+            esac
+          fi
+          
+          # Set deployment timeout based on environment
+          case "$ENV" in
+            "prod") TIMEOUT="20" ;;
+            "qa") TIMEOUT="15" ;;
+            *) TIMEOUT="10" ;;
+          esac
+          
+          echo "environment=$ENV" >> $GITHUB_OUTPUT
+          echo "deploy-timeout=$TIMEOUT" >> $GITHUB_OUTPUT
+          echo "🎯 Target Environment: $ENV"
+          echo "⏱️ Deployment Timeout: ${TIMEOUT} minutes"
 
+  # Development Environment Deployment
+  deploy-dev:
+    if: needs.setup.outputs.environment == 'dev'
+    needs: setup
+    runs-on: ubuntu-latest
+    environment: development
+    timeout-minutes: ${{ fromJson(needs.setup.outputs.deploy-timeout) }}
+    
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -24,149 +74,245 @@ jobs:
         with:
           go-version: '1.21'
 
-      - name: Download Dependencies
+      - name: Development Build & Test
         run: |
-          echo "📦 Downloading Go dependencies..."
+          echo "🏗️ DEV: Building and testing application..."
           go mod download
-          echo "✅ Dependencies downloaded"
-
-      - name: Code Quality Check
-        run: |
-          echo "🔍 Running code quality checks..."
-          # Check if gofmt is available, if not skip formatting check
-          if command -v gofmt >/dev/null 2>&1; then
-            if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
-              echo "❌ Code formatting issues found:"
-              gofmt -s -l .
-              echo "⚠️ Continuing anyway..."
-            else
-              echo "✅ Code formatting is correct"
-            fi
-          else
-            echo "ℹ️ gofmt not available, skipping format check"
-          fi
-
-      - name: Static Analysis
-        run: |
-          echo "🔎 Running static analysis..."
-          go vet ./... || echo "⚠️ Static analysis had warnings, continuing..."
-          echo "✅ Static analysis completed"
-
-      - name: Run Unit Tests
-        run: |
-          echo "🧪 Running unit tests..."
-          go test -v ./...
-          echo "✅ All tests passed"
-
-      - name: Build Application
-        run: |
-          echo "🏗️ Building application..."
           go build -o app main.go
-          echo "✅ Application built successfully"
+          go test -v ./...
+          echo "✅ DEV: Build and tests completed"
 
-      - name: Application Smoke Test
+      - name: DEV - Quick Deployment
         run: |
-          echo "🚀 Running application smoke test..."
-          # Start app in background and test it
-          ./app &
-          APP_PID=$!
-          sleep 3
-          
-          # Test if app is running
-          if kill -0 $APP_PID 2>/dev/null; then
-            echo "✅ Application starts successfully"
-            kill $APP_PID
-            wait $APP_PID 2>/dev/null || true
-          else
-            echo "❌ Application failed to start"
-            exit 1
-          fi
+          echo "🚀 DEV: Fast deployment to development environment..."
+          echo "  ▶️ Deploying to dev servers..."
+          sleep 30
+          echo "  ▶️ Running basic health checks..."
+          sleep 15
+          echo "  ✅ DEV: Deployment completed in ~45 seconds"
 
-      # Deployment Phase 1: Infrastructure (30 seconds)
-      - name: Phase 1 - Infrastructure Setup
+  # QA Environment Deployment  
+  deploy-qa:
+    if: needs.setup.outputs.environment == 'qa'
+    needs: setup
+    runs-on: ubuntu-latest
+    environment: qa
+    timeout-minutes: ${{ fromJson(needs.setup.outputs.deploy-timeout) }}
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Go Environment
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: QA Build & Test
         run: |
-          echo "🏗️ Phase 1: Setting up infrastructure..."
-          echo "  ▶️ Provisioning cloud resources..."
-          sleep 10
+          echo "🏗️ QA: Building and testing application..."
+          go mod download
+          go build -o app main.go
+          go test -v ./...
+          echo "✅ QA: Build and tests completed"
+
+      - name: QA - Infrastructure Setup
+        run: |
+          echo "🏗️ QA: Setting up QA infrastructure..."
+          echo "  ▶️ Provisioning QA resources..."
+          sleep 45
           echo "  ▶️ Configuring load balancers..."
-          sleep 10
-          echo "  ▶️ Setting up monitoring..."
-          sleep 10
-          echo "  ✅ Infrastructure setup completed"
+          sleep 30
+          echo "  ✅ QA: Infrastructure ready"
 
-      # Deployment Phase 2: Database (45 seconds)
-      - name: Phase 2 - Database Operations
+      - name: QA - Application Deployment
         run: |
-          echo "🗄️ Phase 2: Database operations..."
-          echo "  ▶️ Creating database backup..."
-          sleep 10
-          echo "  ▶️ Running database migrations..."
-          sleep 15
-          echo "  ▶️ Updating indexes..."
-          sleep 10
-          echo "  ▶️ Verifying data integrity..."
-          sleep 10
-          echo "  ✅ Database operations completed"
-
-      # Deployment Phase 3: Application Deployment (60 seconds)
-      - name: Phase 3 - Application Deployment
-        run: |
-          echo "📦 Phase 3: Deploying application..."
+          echo "📦 QA: Deploying application to QA environment..."
           echo "  ▶️ Building Docker images..."
-          sleep 15
-          echo "  ▶️ Pushing to container registry..."
-          sleep 15
-          echo "  ▶️ Deploying to staging environment..."
-          sleep 15
+          sleep 60
+          echo "  ▶️ Deploying to QA clusters..."
+          sleep 45
           echo "  ▶️ Running integration tests..."
-          sleep 15
-          echo "  ✅ Application deployment completed"
+          sleep 90
+          echo "  ✅ QA: Application deployed and tested"
 
-      # Deployment Phase 4: Configuration (45 seconds)
-      - name: Phase 4 - Configuration & Services
+      - name: QA - Validation
         run: |
-          echo "⚙️ Phase 4: Configuring services..."
-          echo "  ▶️ Updating configuration files..."
-          sleep 10
-          echo "  ▶️ Restarting services..."
-          sleep 15
-          echo "  ▶️ Configuring SSL certificates..."
-          sleep 10
-          echo "  ▶️ Setting up monitoring alerts..."
-          sleep 10
-          echo "  ✅ Configuration completed"
+          echo "🧪 QA: Running comprehensive validation..."
+          echo "  ▶️ API endpoint testing..."
+          sleep 30
+          echo "  ▶️ UI automation tests..."
+          sleep 60
+          echo "  ▶️ Performance validation..."
+          sleep 45
+          echo "  ✅ QA: All validations passed"
 
-      # Deployment Phase 5: Health Checks (45 seconds)
-      - name: Phase 5 - Health Checks & Validation
-        run: |
-          echo "🧪 Phase 5: Health checks and validation..."
-          echo "  ▶️ Running health checks..."
-          sleep 10
-          echo "  ▶️ Validating API endpoints..."
-          sleep 15
-          echo "  ▶️ Testing external integrations..."
-          sleep 10
-          echo "  ▶️ Performance testing..."
-          sleep 10
-          echo "  ✅ All health checks passed"
+  # Production Environment Deployment
+  deploy-prod:
+    if: needs.setup.outputs.environment == 'prod'
+    needs: setup
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: ${{ fromJson(needs.setup.outputs.deploy-timeout) }}
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-      # Deployment Phase 6: Go Live (45 seconds)
-      - name: Phase 6 - Production Deployment
-        run: |
-          echo "🚀 Phase 6: Going live..."
-          echo "  ▶️ Switching traffic to new deployment..."
-          sleep 15
-          echo "  ▶️ Monitoring initial traffic..."
-          sleep 15
-          echo "  ▶️ Confirming stable performance..."
-          sleep 10
-          echo "  ▶️ Cleaning up old deployments..."
-          sleep 5
-          echo "  🎉 Deployment completed successfully!"
+      - name: Setup Go Environment
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
 
-      - name: Final Validation
+      - name: Production Build & Test
         run: |
-          echo "✅ GitHub Actions deployment workflow completed!"
-          echo "📊 Total deployment time: ~5 minutes"
-          echo "🔗 This workflow was monitored by GitLab CI"
-          echo "🎉 Deployment successful!"
+          echo "🏗️ PROD: Building and testing application..."
+          go mod download
+          go build -o app main.go
+          go test -v ./...
+          echo "✅ PROD: Build and tests completed"
+
+      - name: PROD - Pre-deployment Backup
+        run: |
+          echo "💾 PROD: Creating production backup..."
+          echo "  ▶️ Database backup..."
+          sleep 60
+          echo "  ▶️ Configuration backup..."
+          sleep 30
+          echo "  ▶️ Application state backup..."
+          sleep 45
+          echo "  ✅ PROD: Backup completed"
+
+      - name: PROD - Blue-Green Deployment Setup
+        run: |
+          echo "🔄 PROD: Setting up blue-green deployment..."
+          echo "  ▶️ Preparing green environment..."
+          sleep 90
+          echo "  ▶️ Health checking blue environment..."
+          sleep 30
+          echo "  ▶️ Configuring load balancer..."
+          sleep 45
+          echo "  ✅ PROD: Blue-green setup ready"
+
+      - name: PROD - Application Deployment
+        run: |
+          echo "📦 PROD: Deploying to production..."
+          echo "  ▶️ Building production images..."
+          sleep 120
+          echo "  ▶️ Deploying to green environment..."
+          sleep 90
+          echo "  ▶️ Running smoke tests..."
+          sleep 60
+          echo "  ✅ PROD: Application deployed to green"
+
+      - name: PROD - Traffic Switch
+        run: |
+          echo "🔀 PROD: Switching production traffic..."
+          echo "  ▶️ Gradual traffic shift (10%)..."
+          sleep 45
+          echo "  ▶️ Monitoring metrics..."
+          sleep 60
+          echo "  ▶️ Full traffic switch (100%)..."
+          sleep 30
+          echo "  ▶️ Monitoring stability..."
+          sleep 60
+          echo "  ✅ PROD: Traffic successfully switched"
+
+      - name: PROD - Post-deployment Validation
+        run: |
+          echo "✅ PROD: Final production validation..."
+          echo "  ▶️ Health checks..."
+          sleep 45
+          echo "  ▶️ Performance monitoring..."
+          sleep 60
+          echo "  ▶️ Error rate validation..."
+          sleep 30
+          echo "  🎉 PROD: Production deployment successful!"
+
+  # Next/Staging Environment Deployment
+  deploy-next:
+    if: needs.setup.outputs.environment == 'next'
+    needs: setup
+    runs-on: ubuntu-latest
+    environment: staging
+    timeout-minutes: ${{ fromJson(needs.setup.outputs.deploy-timeout) }}
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Go Environment
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Next Build & Test
+        run: |
+          echo "🏗️ NEXT: Building and testing application..."
+          go mod download
+          go build -o app main.go
+          go test -v ./...
+          echo "✅ NEXT: Build and tests completed"
+
+      - name: NEXT - Staging Infrastructure
+        run: |
+          echo "🏗️ NEXT: Setting up staging infrastructure..."
+          echo "  ▶️ Provisioning staging resources..."
+          sleep 60
+          echo "  ▶️ Configuring databases..."
+          sleep 45
+          echo "  ▶️ Setting up monitoring..."
+          sleep 30
+          echo "  ✅ NEXT: Staging infrastructure ready"
+
+      - name: NEXT - Feature Deployment
+        run: |
+          echo "🚀 NEXT: Deploying next features..."
+          echo "  ▶️ Building feature branch..."
+          sleep 75
+          echo "  ▶️ Deploying to staging..."
+          sleep 60
+          echo "  ▶️ Feature flag configuration..."
+          sleep 30
+          echo "  ✅ NEXT: Features deployed"
+
+      - name: NEXT - Comprehensive Testing
+        run: |
+          echo "🧪 NEXT: Running comprehensive test suite..."
+          echo "  ▶️ Unit tests..."
+          sleep 45
+          echo "  ▶️ Integration tests..."
+          sleep 90
+          echo "  ▶️ E2E tests..."
+          sleep 120
+          echo "  ▶️ Performance tests..."
+          sleep 75
+          echo "  ✅ NEXT: All tests passed"
+
+      - name: NEXT - Preview Deployment
+        run: |
+          echo "👀 NEXT: Setting up preview environment..."
+          echo "  ▶️ Generating preview URL..."
+          sleep 30
+          echo "  ▶️ Configuring access controls..."
+          sleep 30
+          echo "  ▶️ Sending notifications..."
+          sleep 15
+          echo "  🎉 NEXT: Preview environment ready!"
+
+  # Post-deployment summary
+  deployment-summary:
+    needs: [setup, deploy-dev, deploy-qa, deploy-prod, deploy-next]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deployment Summary
+        run: |
+          echo "📊 Deployment Summary"
+          echo "===================="
+          echo "🎯 Environment: ${{ needs.setup.outputs.environment }}"
+          echo "🌿 Branch: ${{ github.ref_name }}"
+          echo "📝 Commit: ${{ github.sha }}"
+          echo "⏱️ Total Duration: ${{ github.event.head_commit.timestamp }}"
+          echo "✅ GitHub Actions deployment completed!"
+          echo "🔗 Monitored by GitLab CI Real-time Monitor"

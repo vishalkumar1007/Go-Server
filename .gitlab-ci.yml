@@ -1,131 +1,226 @@
+# .gitlab-ci.yml
+# GitLab CI Pipeline with GitHub Actions Integration
 stages:
   - build
-  - test
-  - monitor-github-actions
+  - test  
+  - deploy-dev
+  - deploy-qa
+  - deploy-prod
+  - deploy-next
 
 variables:
+  GO_VERSION: "1.21"
   GITHUB_REPO: "vishalkumar1007/Go-Server"
   GITLAB_PROJECT_ID: "71610967"
 
-build-app:
+
+
+
+# Auto Build Stage
+build:
   stage: build
-  image: golang:1.21-alpine
+  image: golang:${GO_VERSION}
   script:
-    - echo "🏗️ Building Go application on GitLab..."
+    - echo "🏗️ Building application..."
     - go mod download
     - go build -o app main.go
     - echo "✅ Build completed successfully"
   artifacts:
     paths:
       - app
+      - monitor/
     expire_in: 1 hour
   only:
     - main
+    - develop
+    - /^feature\/.*$/
+    - /^bugfix\/.*$/
 
-test-app:
+# Auto Test Stage  
+test:
   stage: test
-  image: golang:1.21-alpine
+  image: golang:${GO_VERSION}
   script:
-    - echo "🧪 Running Go tests on GitLab..."
+    - echo "🧪 Running tests..."
     - go mod download
+    - go vet ./...
     - go test -v ./...
     - echo "✅ All tests passed"
   only:
     - main
+    - develop
+    - /^feature\/.*$/
+    - /^bugfix\/.*$/
 
-monitor-github-actions:
-  stage: monitor-github-actions
-  image: golang:1.21-alpine
+# Manual Deploy to DEV Environment
+deploy-dev:
+  stage: deploy-dev
+  image: golang:${GO_VERSION}
   variables:
-    GITHUB_TOKEN: ${GITHUB_API_TOKEN}
-    GITLAB_TOKEN: ${GITLAB_API_TOKEN}
-    COMMIT_SHA: ${CI_COMMIT_SHA}
-    GITHUB_REPO: "vishalkumar1007/Go-Server"
-    GITLAB_PROJECT_ID: "71610967"
-    POLL_INTERVAL: "10s"
-  before_script:
-    - echo "🔍 Debug Information:"
-    - echo "Working directory $(pwd)"
-    - echo "User $(whoami)"
-    - echo "User ID $(id)"
-    - echo "Available space $(df -h .)"
-    - echo "Environment variables:"
-    - echo "  GITHUB_REPO ${GITHUB_REPO}"
-    - echo "  GITLAB_PROJECT_ID ${GITLAB_PROJECT_ID}"
-    - echo "  COMMIT_SHA ${CI_COMMIT_SHA}"
-    - echo "  POLL_INTERVAL ${POLL_INTERVAL}"
-    - echo "Checking if tokens are set (length only for security):"
-    - echo "  GITHUB_TOKEN length ${#GITHUB_TOKEN}"
-    - echo "  GITLAB_TOKEN length ${#GITLAB_TOKEN}"
-    - echo "📁 Testing directory creation and permissions:"
-    - mkdir -p gitlab-logs
-    - ls -la gitlab-logs/
-    - touch gitlab-logs/test-file.txt
-    - echo "test content" > gitlab-logs/test-file.txt
-    - cat gitlab-logs/test-file.txt
-    - rm gitlab-logs/test-file.txt
-    - echo "✅ Directory and file operations work correctly"
-    - echo "🔨 Testing Go compilation:"
-    - cd monitor
-    - go mod init github-actions-monitor || true
-    - go mod tidy
-    - go build -o ../gitlab-logs/github-monitor main.go
-    - ls -la ../gitlab-logs/github-monitor
-    - echo "✅ Go compilation successful"
-    - cd ..
+    ENVIRONMENT: "dev"
+    BRANCH_NAME: "dev"
   script:
-    - echo "🚀 Starting GitHub Actions Real-Time Monitor from GitLab CI"
-    - echo "📁 Monitoring GitHub Repository ${GITHUB_REPO}"
-    - echo "🔗 Commit SHA ${CI_COMMIT_SHA}"
-    - echo "📍 This monitor runs on GitLab CI to track GitHub Actions"
-    - echo "👥 GitLab developers will see GitHub deployment status here"
-    - echo "=================================================="
-    - echo "📋 Initial directory contents:"
-    - ls -la gitlab-logs/
-    - echo "👁️ Starting real-time GitHub Actions monitoring..."
-    - echo "⏰ Will check GitHub Actions every 10 seconds"
-    - echo "📊 Logs will show live deployment progress"
-    - echo "--------------------------------------------------"
-    - ./gitlab-logs/github-monitor 2>&1 | tee -a gitlab-logs/monitor-output.log
-    - echo "=================================================="
-    - echo "📋 GitHub Actions Monitoring Complete!"
-    - echo "📄 Final directory contents:"
-    - ls -la gitlab-logs/
-    - echo "📄 Checking log files:"
-    - |
-      if [ -f "gitlab-logs/github-deployment.log" ]; then
-        echo "✅ Main log file exists ($(wc -l < gitlab-logs/github-deployment.log) lines)"
-        echo "📄 Last 10 lines of deployment log:"
-        tail -10 gitlab-logs/github-deployment.log
-      else
-        echo "❌ Main log file not found"
-      fi
-    - |
-      if [ -f "gitlab-logs/github-api-responses.log" ]; then
-        echo "✅ API log file exists ($(wc -c < gitlab-logs/github-api-responses.log) bytes)"
-      else
-        echo "❌ API log file not found"
-      fi
-    - |
-      if [ -f "gitlab-logs/monitor-output.log" ]; then
-        echo "✅ Monitor output log exists ($(wc -l < gitlab-logs/monitor-output.log) lines)"
-      else
-        echo "❌ Monitor output log not found"
-      fi
+    - echo "🚀 Triggering GitHub Actions deployment to DEV environment..."
+    - echo "📡 Monitoring GitHub Actions workflow for branch: ${BRANCH_NAME}"
+    
+    # Build and run the monitor
+    - cd monitor
+    - go mod init github-monitor 2>/dev/null || true
+    - go mod tidy
+    - go build -o github-monitor main.go
+    
+    # Run the monitor with environment variables
+    - export GITHUB_TOKEN="${GITHUB_TOKEN}"
+    - export GITHUB_REPO="${GITHUB_REPO}"
+    - export GITLAB_TOKEN="${GITLAB_TOKEN}"
+    - export GITLAB_PROJECT_ID="${GITLAB_PROJECT_ID}"
+    - export BRANCH_NAME="${BRANCH_NAME}"
+    - export ENVIRONMENT="${ENVIRONMENT}"
+    - export POLL_INTERVAL="10s"
+    
+    # Start monitoring
+    - echo "🔍 Starting real-time GitHub Actions monitoring..."
+    - ./github-monitor
+    
   artifacts:
-    name: "github-actions-logs-${CI_COMMIT_SHORT_SHA}"
-    paths:
-      - gitlab-logs/
-    reports:
-      junit: gitlab-logs/*.xml
-    expire_in: 30 days
     when: always
-  timeout: 45m
+    paths:
+      - monitor/gitlab-logs/
+    expire_in: 1 week
+    reports:
+      junit: monitor/gitlab-logs/*.xml
+  when: manual
   only:
     - main
+
+# Manual Deploy to QA Environment
+deploy-qa:
+  stage: deploy-qa
+  image: golang:${GO_VERSION}
+  variables:
+    ENVIRONMENT: "qa"
+    BRANCH_NAME: "qa"
+  script:
+    - echo "🚀 Triggering GitHub Actions deployment to QA environment..."
+    - echo "📡 Monitoring GitHub Actions workflow for branch: ${BRANCH_NAME}"
+    
+    # Build and run the monitor
+    - cd monitor
+    - go mod init github-monitor 2>/dev/null || true
+    - go mod tidy
+    - go build -o github-monitor main.go
+    
+    # Run the monitor with environment variables
+    - export GITHUB_TOKEN="${GITHUB_TOKEN}"
+    - export GITHUB_REPO="${GITHUB_REPO}"
+    - export GITLAB_TOKEN="${GITLAB_TOKEN}"
+    - export GITLAB_PROJECT_ID="${GITLAB_PROJECT_ID}"
+    - export BRANCH_NAME="${BRANCH_NAME}"
+    - export ENVIRONMENT="${ENVIRONMENT}"
+    - export POLL_INTERVAL="10s"
+    
+    # Start monitoring
+    - echo "🔍 Starting real-time GitHub Actions monitoring..."
+    - ./github-monitor
+    
+  artifacts:
+    when: always
+    paths:
+      - monitor/gitlab-logs/
+    expire_in: 1 week
   when: manual
-  retry:
-    max: 1
-    when:
-      - runner_system_failure
-      - api_failure
+  only:
+    - main
+
+# Manual Deploy to PROD Environment
+deploy-prod:
+  stage: deploy-prod
+  image: golang:${GO_VERSION}
+  variables:
+    ENVIRONMENT: "prod"
+    BRANCH_NAME: "main"
+  script:
+    - echo "🚀 Triggering GitHub Actions deployment to PRODUCTION environment..."
+    - echo "📡 Monitoring GitHub Actions workflow for branch: ${BRANCH_NAME}"
+    - echo "⚠️ PRODUCTION DEPLOYMENT - Monitoring carefully..."
+    
+    # Build and run the monitor
+    - cd monitor
+    - go mod init github-monitor 2>/dev/null || true
+    - go mod tidy
+    - go build -o github-monitor main.go
+    
+    # Run the monitor with environment variables
+    - export GITHUB_TOKEN="${GITHUB_TOKEN}"
+    - export GITHUB_REPO="${GITHUB_REPO}"
+    - export GITLAB_TOKEN="${GITLAB_TOKEN}"
+    - export GITLAB_PROJECT_ID="${GITLAB_PROJECT_ID}"
+    - export BRANCH_NAME="${BRANCH_NAME}"
+    - export ENVIRONMENT="${ENVIRONMENT}"
+    - export POLL_INTERVAL="5s"  # More frequent polling for production
+    
+    # Start monitoring
+    - echo "🔍 Starting real-time GitHub Actions monitoring..."
+    - ./github-monitor
+    
+  artifacts:
+    when: always
+    paths:
+      - monitor/gitlab-logs/
+    expire_in: 1 month  # Keep prod logs longer
+  when: manual
+  only:
+    - main
+
+# Manual Deploy to NEXT Environment
+deploy-next:
+  stage: deploy-next
+  image: golang:${GO_VERSION}
+  variables:
+    ENVIRONMENT: "next"
+    BRANCH_NAME: "next"
+  script:
+    - echo "🚀 Triggering GitHub Actions deployment to NEXT environment..."
+    - echo "📡 Monitoring GitHub Actions workflow for branch: ${BRANCH_NAME}"
+    
+    # Build and run the monitor
+    - cd monitor
+    - go mod init github-monitor 2>/dev/null || true
+    - go mod tidy
+    - go build -o github-monitor main.go
+    
+    # Run the monitor with environment variables
+    - export GITHUB_TOKEN="${GITHUB_TOKEN}"
+    - export GITHUB_REPO="${GITHUB_REPO}"
+    - export GITLAB_TOKEN="${GITLAB_TOKEN}"
+    - export GITLAB_PROJECT_ID="${GITLAB_PROJECT_ID}"
+    - export BRANCH_NAME="${BRANCH_NAME}"
+    - export ENVIRONMENT="${ENVIRONMENT}"
+    - export POLL_INTERVAL="10s"
+    
+    # Start monitoring
+    - echo "🔍 Starting real-time GitHub Actions monitoring..."
+    - ./github-monitor
+    
+  artifacts:
+    when: always
+    paths:
+      - monitor/gitlab-logs/
+    expire_in: 1 week
+  when: manual
+  only:
+    - main
+
+# Optional: Cleanup job
+cleanup:
+  stage: .post
+  image: alpine:latest
+  script:
+    - echo "🧹 Cleaning up temporary files..."
+    - rm -rf /tmp/github-monitor-*
+  when: always
+  allow_failure: true
+
+
+
+
