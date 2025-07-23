@@ -58,8 +58,8 @@ deploy-dev:
     ENVIRONMENT: "dev"
     BRANCH_NAME: "dev"
   script:
-    - echo "🚀 Triggering GitHub Actions deployment to DEV environment..."
-    - echo "📡 Monitoring GitHub Actions workflow for branch: ${BRANCH_NAME}"
+    - 'echo "🚀 Triggering GitHub Actions deployment to DEV environment..."'
+    - 'echo "📡 Monitoring GitHub Actions workflow for branch: ${BRANCH_NAME}"'
     - cd monitor
     - go mod init github-monitor 2>/dev/null || true
     - go mod tidy
@@ -70,8 +70,8 @@ deploy-dev:
     - export GITLAB_PROJECT_ID="${GITLAB_PROJECT_ID}"
     - export BRANCH_NAME="${BRANCH_NAME}"
     - export ENVIRONMENT="${ENVIRONMENT}"
-    - export POLL_INTERVAL="10s"
-    - echo "🔍 Starting real-time GitHub Actions monitoring..."
+    - 'export POLL_INTERVAL="10s"'
+    - 'echo "🔍 Starting real-time GitHub Actions monitoring..."'
     - ./github-monitor
   artifacts:
     when: always
@@ -92,8 +92,8 @@ deploy-qa:
     ENVIRONMENT: "qa"
     BRANCH_NAME: "qa"
   script:
-    - echo "🚀 Triggering GitHub Actions deployment to QA environment..."
-    - echo "📡 Monitoring GitHub Actions workflow for branch: ${BRANCH_NAME}"
+    - 'echo "🚀 Triggering GitHub Actions deployment to QA environment..."'
+    - 'echo "📡 Monitoring GitHub Actions workflow for branch: ${BRANCH_NAME}"'
     - cd monitor
     - go mod init github-monitor 2>/dev/null || true
     - go mod tidy
@@ -104,8 +104,8 @@ deploy-qa:
     - export GITLAB_PROJECT_ID="${GITLAB_PROJECT_ID}"
     - export BRANCH_NAME="${BRANCH_NAME}"
     - export ENVIRONMENT="${ENVIRONMENT}"
-    - export POLL_INTERVAL="10s"
-    - echo "🔍 Starting real-time GitHub Actions monitoring..."
+    - 'export POLL_INTERVAL="10s"'
+    - 'echo "🔍 Starting real-time GitHub Actions monitoring..."'
     - ./github-monitor
   artifacts:
     when: always
@@ -124,9 +124,9 @@ deploy-prod:
     ENVIRONMENT: "prod"
     BRANCH_NAME: "main"
   script:
-    - echo "🚀 Triggering GitHub Actions deployment to PRODUCTION environment..."
-    - echo "📡 Monitoring GitHub Actions workflow for branch: ${BRANCH_NAME}"
-    - echo "⚠️ PRODUCTION DEPLOYMENT - Monitoring carefully..."
+    - 'echo "🚀 Triggering GitHub Actions deployment to PRODUCTION environment..."'
+    - 'echo "📡 Monitoring GitHub Actions workflow for branch: ${BRANCH_NAME}"'
+    - 'echo "⚠️ PRODUCTION DEPLOYMENT - Monitoring carefully..."'
     - cd monitor
     - go mod init github-monitor 2>/dev/null || true
     - go mod tidy
@@ -137,8 +137,8 @@ deploy-prod:
     - export GITLAB_PROJECT_ID="${GITLAB_PROJECT_ID}"
     - export BRANCH_NAME="${BRANCH_NAME}"
     - export ENVIRONMENT="${ENVIRONMENT}"
-    - export POLL_INTERVAL="5s"
-    - echo "🔍 Starting real-time GitHub Actions monitoring..."
+    - 'export POLL_INTERVAL="5s"'
+    - 'echo "🔍 Starting real-time GitHub Actions monitoring..."'
     - ./github-monitor
   artifacts:
     when: always
@@ -157,8 +157,8 @@ deploy-next:
     ENVIRONMENT: "next"
     BRANCH_NAME: "next"
   script:
-    - echo "🚀 Triggering GitHub Actions deployment to NEXT environment..."
-    - echo "📡 Monitoring GitHub Actions workflow for branch: ${BRANCH_NAME}"
+    - 'echo "🚀 Triggering GitHub Actions deployment to NEXT environment..."'
+    - 'echo "📡 Monitoring GitHub Actions workflow for branch: ${BRANCH_NAME}"'
     - cd monitor
     - go mod init github-monitor 2>/dev/null || true
     - go mod tidy
@@ -169,8 +169,8 @@ deploy-next:
     - export GITLAB_PROJECT_ID="${GITLAB_PROJECT_ID}"
     - export BRANCH_NAME="${BRANCH_NAME}"
     - export ENVIRONMENT="${ENVIRONMENT}"
-    - export POLL_INTERVAL="10s"
-    - echo "🔍 Starting real-time GitHub Actions monitoring..."
+    - 'export POLL_INTERVAL="10s"'
+    - 'echo "🔍 Starting real-time GitHub Actions monitoring..."'
     - ./github-monitor
   artifacts:
     when: always
@@ -186,7 +186,7 @@ cleanup:
   stage: .post
   image: alpine:latest
   script:
-    - echo "🧹 Cleaning up temporary files..."
+    - 'echo "🧹 Cleaning up temporary files..."'
     - rm -rf /tmp/github-monitor-*
   when: always
   allow_failure: true
