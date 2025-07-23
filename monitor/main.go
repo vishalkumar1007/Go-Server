@@ -1,5 +1,5 @@
 // monitor/main.go
-// GitHub Actions Real-Time Monitor for GitLab CI - COMPLETE VERSION-1.0.1
+// GitHub Actions Real-Time Monitor for GitLab CI - Branch-based Version 1.1.0
 package main
 
 import (
@@ -26,6 +26,7 @@ type GitHubWorkflowRun struct {
 	RunStartedAt string `json:"run_started_at"`
 	HTMLURL      string `json:"html_url"`
 	HeadSHA      string `json:"head_sha"`
+	HeadBranch   string `json:"head_branch"`
 	Event        string `json:"event"`
 	RunNumber    int    `json:"run_number"`
 	RunAttempt   int    `json:"run_attempt"`
@@ -69,7 +70,8 @@ type GitHubActionsMonitor struct {
 	GitHubRepo      string
 	GitLabToken     string
 	GitLabProjectID string
-	CommitSHA       string
+	BranchName      string // Changed from CommitSHA to BranchName
+	Environment     string // New: environment name (dev, qa, prod, next)
 	LogFile         string
 	APILogFile      string
 	PollInterval    time.Duration
@@ -86,16 +88,22 @@ func NewGitHubActionsMonitor() *GitHubActionsMonitor {
 		}
 	}
 
+	environment := os.Getenv("ENVIRONMENT")
+	if environment == "" {
+		environment = "unknown"
+	}
+
 	logsDir := "gitlab-logs"
 	return &GitHubActionsMonitor{
 		GitHubToken:     os.Getenv("GITHUB_TOKEN"),
 		GitHubRepo:      os.Getenv("GITHUB_REPO"),
 		GitLabToken:     os.Getenv("GITLAB_TOKEN"),
 		GitLabProjectID: os.Getenv("GITLAB_PROJECT_ID"),
-		CommitSHA:       os.Getenv("COMMIT_SHA"),
+		BranchName:      os.Getenv("BRANCH_NAME"), // Read branch name from env
+		Environment:     environment,
 		LogsDir:         logsDir,
-		LogFile:         filepath.Join(logsDir, "github-deployment.log"),
-		APILogFile:      filepath.Join(logsDir, "github-api-responses.log"),
+		LogFile:         filepath.Join(logsDir, fmt.Sprintf("github-deployment-%s.log", environment)),
+		APILogFile:      filepath.Join(logsDir, fmt.Sprintf("github-api-responses-%s.log", environment)),
 		PollInterval:    pollInterval,
 		HTTPClient:      &http.Client{Timeout: 30 * time.Second},
 	}
@@ -197,7 +205,7 @@ func (gm *GitHubActionsMonitor) makeGitHubRequest(endpoint string) (*http.Respon
 
 	req.Header.Set("Authorization", "Bearer "+gm.GitHubToken)
 	req.Header.Set("Accept", "application/vnd.github.v3+json")
-	req.Header.Set("User-Agent", "GitLab-GitHub-Monitor/1.0")
+	req.Header.Set("User-Agent", "GitLab-GitHub-Monitor/1.1")
 
 	return gm.HTTPClient.Do(req)
 }
@@ -275,12 +283,12 @@ func (gm *GitHubActionsMonitor) getWorkflowJobs(runID int) (*GitHubJobsResponse,
 }
 
 // updateGitLabStatus updates GitLab external pipeline status
-func (gm *GitHubActionsMonitor) updateGitLabStatus(state, description, targetURL string) error {
-	url := fmt.Sprintf("https://gitlab.com/api/v4/projects/%s/statuses/%s", gm.GitLabProjectID, gm.CommitSHA)
+func (gm *GitHubActionsMonitor) updateGitLabStatus(state, description, targetURL, commitSHA string) error {
+	url := fmt.Sprintf("https://gitlab.com/api/v4/projects/%s/statuses/%s", gm.GitLabProjectID, commitSHA)
 
 	payload := map[string]string{
 		"state":       state,
-		"context":     "GitHub Actions Deployment",
+		"context":     fmt.Sprintf("GitHub Actions - %s Environment", strings.Title(gm.Environment)),
 		"description": description,
 		"target_url":  targetURL,
 	}
@@ -447,8 +455,8 @@ func (gm *GitHubActionsMonitor) validateConfig() error {
 	if gm.GitLabProjectID == "" {
 		return fmt.Errorf("GITLAB_PROJECT_ID is required")
 	}
-	if gm.CommitSHA == "" {
-		return fmt.Errorf("COMMIT_SHA is required")
+	if gm.BranchName == "" {
+		return fmt.Errorf("BRANCH_NAME is required")
 	}
 	return nil
 }
@@ -464,7 +472,8 @@ func (gm *GitHubActionsMonitor) startMonitoring() error {
 
 	gm.writeLog("🚀 GitLab CI: Real-Time GitHub Actions Monitor Started")
 	gm.writeLog(fmt.Sprintf("📁 GitHub Repository: %s", gm.GitHubRepo))
-	gm.writeLog(fmt.Sprintf("🔗 Monitoring Commit: %s", gm.CommitSHA))
+	gm.writeLog(fmt.Sprintf("🌿 Monitoring Branch: %s", gm.BranchName))
+	gm.writeLog(fmt.Sprintf("🏗️ Environment: %s", strings.ToUpper(gm.Environment)))
 	gm.writeLog(fmt.Sprintf("⏰ Polling every: %v", gm.PollInterval))
 	gm.writeLog(fmt.Sprintf("📝 Log file: %s", gm.LogFile))
 	gm.writeLog(fmt.Sprintf("📊 API log file: %s", gm.APILogFile))
@@ -494,7 +503,8 @@ func (gm *GitHubActionsMonitor) startMonitoring() error {
 
 		var currentRun *GitHubWorkflowRun
 		for _, run := range runs.WorkflowRuns {
-			if run.HeadSHA == gm.CommitSHA {
+			// Modified: Match by branch name instead of commit SHA
+			if run.HeadBranch == gm.BranchName {
 				detailed, err := gm.getSpecificWorkflowRun(run.ID)
 				if err == nil {
 					currentRun = detailed
@@ -504,7 +514,7 @@ func (gm *GitHubActionsMonitor) startMonitoring() error {
 		}
 
 		if currentRun == nil {
-			gm.writeLog(fmt.Sprintf("⏳ No workflow found for commit %s yet...", gm.CommitSHA))
+			gm.writeLog(fmt.Sprintf("⏳ No workflow found for branch %s yet...", gm.BranchName))
 			time.Sleep(gm.PollInterval)
 			continue
 		}
@@ -515,13 +525,13 @@ func (gm *GitHubActionsMonitor) startMonitoring() error {
 			currentRun.ID != lastRunID
 
 		symbol := gm.getStatusSymbol(currentRun.Status, currentRun.Conclusion)
-		statusMsg := fmt.Sprintf("%s GitHub Actions: %s", symbol, strings.ToUpper(currentRun.Status))
+		statusMsg := fmt.Sprintf("%s GitHub Actions (%s): %s", symbol, strings.ToUpper(gm.Environment), strings.ToUpper(currentRun.Status))
 
 		if currentRun.Status == "completed" && currentRun.Conclusion != "" {
 			statusMsg += fmt.Sprintf(" (%s)", strings.ToUpper(currentRun.Conclusion))
 		}
 
-		statusMsg += fmt.Sprintf(" | Run ID: %d", currentRun.ID)
+		statusMsg += fmt.Sprintf(" | Run ID: %d | Branch: %s", currentRun.ID, currentRun.HeadBranch)
 		gm.writeLog(statusMsg)
 
 		if statusChanged {
@@ -532,12 +542,12 @@ func (gm *GitHubActionsMonitor) startMonitoring() error {
 
 			// Update GitLab external status
 			gitlabState := gm.mapToGitLabState(currentRun.Status, currentRun.Conclusion)
-			description := fmt.Sprintf("GitHub Actions: %s", currentRun.Status)
+			description := fmt.Sprintf("GitHub Actions (%s): %s", gm.Environment, currentRun.Status)
 			if currentRun.Conclusion != "" {
 				description += fmt.Sprintf(" (%s)", currentRun.Conclusion)
 			}
 
-			if err := gm.updateGitLabStatus(gitlabState, description, currentRun.HTMLURL); err != nil {
+			if err := gm.updateGitLabStatus(gitlabState, description, currentRun.HTMLURL, currentRun.HeadSHA); err != nil {
 				gm.writeLog(fmt.Sprintf("⚠️ Warning: GitLab status update failed: %v", err))
 			} else {
 				gm.writeLog(fmt.Sprintf("✅ GitLab external status updated: %s", gitlabState))
@@ -557,12 +567,12 @@ func (gm *GitHubActionsMonitor) startMonitoring() error {
 				symbol, strings.ToUpper(currentRun.Conclusion)))
 
 			if currentRun.Conclusion == "success" {
-				gm.writeLog("🎉 GitHub Actions deployment SUCCESSFUL!")
+				gm.writeLog(fmt.Sprintf("🎉 GitHub Actions deployment to %s SUCCESSFUL!", strings.ToUpper(gm.Environment)))
 			} else if currentRun.Conclusion == "failure" {
-				gm.writeLog("💥 GitHub Actions deployment FAILED!")
+				gm.writeLog(fmt.Sprintf("💥 GitHub Actions deployment to %s FAILED!", strings.ToUpper(gm.Environment)))
 				gm.analyzeFailure(currentRun)
 			} else if currentRun.Conclusion == "cancelled" {
-				gm.writeLog("⚠️ GitHub Actions deployment was CANCELLED")
+				gm.writeLog(fmt.Sprintf("⚠️ GitHub Actions deployment to %s was CANCELLED", strings.ToUpper(gm.Environment)))
 			}
 
 			gm.writeLog(fmt.Sprintf("⏱️ Total monitoring duration: %v", totalDuration))
