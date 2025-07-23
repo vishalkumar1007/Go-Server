@@ -1,5 +1,5 @@
 # .gitlab-ci.yml
-# GitLab CI Pipeline that triggers GitHub Actions workflows & monitors logs
+# GitLab CI Pipeline that triggers GitHub Actions workflows & monitors log
 
 stages:
   - build
