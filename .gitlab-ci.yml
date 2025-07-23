@@ -181,7 +181,7 @@ deploy-next:
   only:
     - main
 
-# Optional: Cleanup jobs
+# Optional: Cleanup job
 cleanup:
   stage: .post
   image: alpine:latest
