@@ -56,11 +56,11 @@ test:
   script:
     - echo "🚀 Triggering GitHub Actions deployment to ${ENVIRONMENT^^}..."
     - echo "📡 Triggering GitHub Workflow Dispatch via API..."
-    - >
-      curl -s -X POST https://api.github.com/repos/${GITHUB_REPO}/actions/workflows/deploy.yml/dispatches
-      -H "Authorization: Bearer ${GITHUB_TOKEN}"
-      -H "Accept: application/vnd.github+json"
-      -d "{\"ref\":\"${BRANCH_NAME}\", \"inputs\":{\"environment\":\"${ENVIRONMENT}\"}}"
+    - |
+      curl -s -X POST "https://api.github.com/repos/${GITHUB_REPO}/actions/workflows/deploy.yml/dispatches" \
+        -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+        -H "Accept: application/vnd.github+json" \
+        -d "{\"ref\":\"${BRANCH_NAME}\", \"inputs\":{\"environment\":\"${ENVIRONMENT}\"}}"
     - echo "🖥️ Monitoring GitHub Actions workflow for branch: ${BRANCH_NAME}"
     - cd monitor
     - go mod init github-monitor 2>/dev/null || true
@@ -75,21 +75,15 @@ test:
     - export POLL_INTERVAL="10s"
     - echo "🔍 Starting real-time GitHub Actions monitoring..."
     - ./github-monitor
-  artifacts:
-    when: always
-    paths:
-      - monitor/gitlab-logs/
-    expire_in: 1 week
-  when: manual
-  only:
-    - main
 
 # Manual Deploy: DEV
 deploy-dev:
   stage: deploy-dev
   variables:
+    ENVIRONMENT: "dev"
     BRANCH_NAME: "dev"
   <<: *deploy_template
+
 
 # Manual Deploy: QA
 deploy-qa:
