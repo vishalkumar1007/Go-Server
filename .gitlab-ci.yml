@@ -1,5 +1,6 @@
 # .gitlab-ci.yml
 # GitLab CI Pipeline with GitHub Actions Integration
+
 stages:
   - build
   - test  
@@ -12,9 +13,6 @@ variables:
   GO_VERSION: "1.21"
   GITHUB_REPO: "vishalkumar1007/Go-Server"
   GITLAB_PROJECT_ID: "71610967"
-
-
-
 
 # Auto Build Stage
 build:
@@ -62,14 +60,10 @@ deploy-dev:
   script:
     - echo "🚀 Triggering GitHub Actions deployment to DEV environment..."
     - echo "📡 Monitoring GitHub Actions workflow for branch: ${BRANCH_NAME}"
-    
-    # Build and run the monitor
     - cd monitor
     - go mod init github-monitor 2>/dev/null || true
     - go mod tidy
     - go build -o github-monitor main.go
-    
-    # Run the monitor with environment variables
     - export GITHUB_TOKEN="${GITHUB_TOKEN}"
     - export GITHUB_REPO="${GITHUB_REPO}"
     - export GITLAB_TOKEN="${GITLAB_TOKEN}"
@@ -77,11 +71,8 @@ deploy-dev:
     - export BRANCH_NAME="${BRANCH_NAME}"
     - export ENVIRONMENT="${ENVIRONMENT}"
     - export POLL_INTERVAL="10s"
-    
-    # Start monitoring
     - echo "🔍 Starting real-time GitHub Actions monitoring..."
     - ./github-monitor
-    
   artifacts:
     when: always
     paths:
@@ -103,14 +94,10 @@ deploy-qa:
   script:
     - echo "🚀 Triggering GitHub Actions deployment to QA environment..."
     - echo "📡 Monitoring GitHub Actions workflow for branch: ${BRANCH_NAME}"
-    
-    # Build and run the monitor
     - cd monitor
     - go mod init github-monitor 2>/dev/null || true
     - go mod tidy
     - go build -o github-monitor main.go
-    
-    # Run the monitor with environment variables
     - export GITHUB_TOKEN="${GITHUB_TOKEN}"
     - export GITHUB_REPO="${GITHUB_REPO}"
     - export GITLAB_TOKEN="${GITLAB_TOKEN}"
@@ -118,11 +105,8 @@ deploy-qa:
     - export BRANCH_NAME="${BRANCH_NAME}"
     - export ENVIRONMENT="${ENVIRONMENT}"
     - export POLL_INTERVAL="10s"
-    
-    # Start monitoring
     - echo "🔍 Starting real-time GitHub Actions monitoring..."
     - ./github-monitor
-    
   artifacts:
     when: always
     paths:
@@ -143,31 +127,24 @@ deploy-prod:
     - echo "🚀 Triggering GitHub Actions deployment to PRODUCTION environment..."
     - echo "📡 Monitoring GitHub Actions workflow for branch: ${BRANCH_NAME}"
     - echo "⚠️ PRODUCTION DEPLOYMENT - Monitoring carefully..."
-    
-    # Build and run the monitor
     - cd monitor
     - go mod init github-monitor 2>/dev/null || true
     - go mod tidy
     - go build -o github-monitor main.go
-    
-    # Run the monitor with environment variables
     - export GITHUB_TOKEN="${GITHUB_TOKEN}"
     - export GITHUB_REPO="${GITHUB_REPO}"
     - export GITLAB_TOKEN="${GITLAB_TOKEN}"
     - export GITLAB_PROJECT_ID="${GITLAB_PROJECT_ID}"
     - export BRANCH_NAME="${BRANCH_NAME}"
     - export ENVIRONMENT="${ENVIRONMENT}"
-    - export POLL_INTERVAL="5s"  # More frequent polling for production
-    
-    # Start monitoring
+    - export POLL_INTERVAL="5s"
     - echo "🔍 Starting real-time GitHub Actions monitoring..."
     - ./github-monitor
-    
   artifacts:
     when: always
     paths:
       - monitor/gitlab-logs/
-    expire_in: 1 month  # Keep prod logs longer
+    expire_in: 1 month
   when: manual
   only:
     - main
@@ -182,14 +159,10 @@ deploy-next:
   script:
     - echo "🚀 Triggering GitHub Actions deployment to NEXT environment..."
     - echo "📡 Monitoring GitHub Actions workflow for branch: ${BRANCH_NAME}"
-    
-    # Build and run the monitor
     - cd monitor
     - go mod init github-monitor 2>/dev/null || true
     - go mod tidy
     - go build -o github-monitor main.go
-    
-    # Run the monitor with environment variables
     - export GITHUB_TOKEN="${GITHUB_TOKEN}"
     - export GITHUB_REPO="${GITHUB_REPO}"
     - export GITLAB_TOKEN="${GITLAB_TOKEN}"
@@ -197,11 +170,8 @@ deploy-next:
     - export BRANCH_NAME="${BRANCH_NAME}"
     - export ENVIRONMENT="${ENVIRONMENT}"
     - export POLL_INTERVAL="10s"
-    
-    # Start monitoring
     - echo "🔍 Starting real-time GitHub Actions monitoring..."
     - ./github-monitor
-    
   artifacts:
     when: always
     paths:
@@ -220,7 +190,3 @@ cleanup:
     - rm -rf /tmp/github-monitor-*
   when: always
   allow_failure: true
-
-
-
-
