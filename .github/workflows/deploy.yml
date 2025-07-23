@@ -1,5 +1,5 @@
 # .github/workflows/deploy.yml
-# Manual Multi-Environment Deployment Workflow
+# Manual GitHub Actions workflow triggered by GitLab pipeline
 
 name: Multi-Environment Deployment
 
@@ -18,7 +18,6 @@ on:
           - next
 
 jobs:
-  # Set deployment parameters based on environment
   setup:
     runs-on: ubuntu-latest
     outputs:
@@ -29,25 +28,19 @@ jobs:
         id: set-env
         run: |
           ENV="${{ inputs.environment }}"
-
           case "$ENV" in
             prod) TIMEOUT="20" ;;
             qa) TIMEOUT="15" ;;
             *) TIMEOUT="10" ;;
           esac
-
           echo "environment=$ENV" >> $GITHUB_OUTPUT
           echo "deploy-timeout=$TIMEOUT" >> $GITHUB_OUTPUT
-          echo "🎯 Environment: $ENV"
-          echo "⏱️ Timeout: ${TIMEOUT} minutes"
 
-  # Deploy to Development
-  deploy-dev:
-    if: needs.setup.outputs.environment == 'dev'
+  deploy:
     needs: setup
     runs-on: ubuntu-latest
-    environment: development
     timeout-minutes: ${{ fromJson(needs.setup.outputs.deploy-timeout) }}
+    environment: ${{ needs.setup.outputs.environment }}
     steps:
       - uses: actions/checkout@v4
 
@@ -55,106 +48,24 @@ jobs:
         with:
           go-version: '1.21'
 
-      - name: Build & Test (DEV)
+      - name: Build & Test (${{ needs.setup.outputs.environment }})
         run: |
           go mod download
           go build -o app main.go
           go test -v ./...
 
-      - name: Deploy to DEV
+      - name: Deploy to ${{ needs.setup.outputs.environment }}
         run: |
-          echo "🚀 Deploying to DEV environment..."
-          sleep 30
-          echo "✅ DEV deployment completed."
-
-  # Deploy to QA
-  deploy-qa:
-    if: needs.setup.outputs.environment == 'qa'
-    needs: setup
-    runs-on: ubuntu-latest
-    environment: qa
-    timeout-minutes: ${{ fromJson(needs.setup.outputs.deploy-timeout) }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v4
-        with:
-          go-version: '1.21'
-
-      - name: Build & Test (QA)
-        run: |
-          go mod download
-          go build -o app main.go
-          go test -v ./...
-
-      - name: Deploy to QA
-        run: |
-          echo "🚀 Deploying to QA environment..."
+          echo "🚀 Deploying to ${{ needs.setup.outputs.environment }} environment..."
           sleep 45
-          echo "✅ QA deployment completed."
+          echo "✅ Deployment complete!"
 
-  # Deploy to Production
-  deploy-prod:
-    if: needs.setup.outputs.environment == 'prod'
-    needs: setup
-    runs-on: ubuntu-latest
-    environment: production
-    timeout-minutes: ${{ fromJson(needs.setup.outputs.deploy-timeout) }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v4
-        with:
-          go-version: '1.21'
-
-      - name: Build & Test (PROD)
-        run: |
-          go mod download
-          go build -o app main.go
-          go test -v ./...
-
-      - name: Deploy to PROD
-        run: |
-          echo "🚀 Deploying to PRODUCTION..."
-          sleep 60
-          echo "✅ Production deployment successful."
-
-  # Deploy to NEXT/Staging
-  deploy-next:
-    if: needs.setup.outputs.environment == 'next'
-    needs: setup
-    runs-on: ubuntu-latest
-    environment: staging
-    timeout-minutes: ${{ fromJson(needs.setup.outputs.deploy-timeout) }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v4
-        with:
-          go-version: '1.21'
-
-      - name: Build & Test (NEXT)
-        run: |
-          go mod download
-          go build -o app main.go
-          go test -v ./...
-
-      - name: Deploy to NEXT
-        run: |
-          echo "🚀 Deploying to NEXT environment..."
-          sleep 45
-          echo "✅ NEXT deployment completed."
-
-  # Deployment Summary
   summary:
-    if: always()
-    needs: [setup, deploy-dev, deploy-qa, deploy-prod, deploy-next]
+    needs: [setup, deploy]
     runs-on: ubuntu-latest
+    if: always()
     steps:
       - name: Deployment Summary
         run: |
-          echo "📊 Deployment Complete"
-          echo "Environment: ${{ needs.setup.outputs.environment }}"
-          echo "Branch: ${{ github.ref_name }}"
-          echo "Commit: ${{ github.sha }}"
-          echo "✅ All done!"
+          echo "📊 Environment: ${{ needs.setup.outputs.environment }}"
+          echo "✅ Deployment job completed."
