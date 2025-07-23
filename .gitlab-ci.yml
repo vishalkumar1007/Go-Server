@@ -1,5 +1,5 @@
 # .gitlab-ci.yml
-# GitLab CI Pipeline with GitHub Actions Integrations
+# GitLab CI Pipeline with GitHub Actions Integration
 
 stages:
   - build
