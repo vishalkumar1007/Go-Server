@@ -1,16 +1,9 @@
 # .gitlab-ci.yml
-<<<<<<< HEAD
-# GitLab CI Pipeline with GitHub Actions Integration
-stages:
-  - build
-  - test  
-=======
 # GitLab CI Pipeline that triggers GitHub Actions workflows & monitors log
 
 stages:
   - build
   - test
->>>>>>> main
   - deploy-dev
   - deploy-qa
   - deploy-prod
@@ -21,23 +14,12 @@ variables:
   GITHUB_REPO: "vishalkumar1007/Go-Server"
   GITLAB_PROJECT_ID: "71610967"
 
-<<<<<<< HEAD
-
-
-
-# Auto Build Stage
-=======
 # Build Stage
->>>>>>> main
 build:
   stage: build
   image: golang:${GO_VERSION}
   script:
-<<<<<<< HEAD
-    - echo "🏗️ Building application..."
-=======
     - 'echo "🏗️ Building application..."'
->>>>>>> main
     - go mod download
     - go build -o app main.go
     - 'echo "✅ Build completed"'
@@ -52,20 +34,12 @@ build:
     - /^feature\/.*$/
     - /^bugfix\/.*$/
 
-<<<<<<< HEAD
-# Auto Test Stage  
-=======
 # Test Stage
->>>>>>> main
 test:
   stage: test
   image: golang:${GO_VERSION}
   script:
-<<<<<<< HEAD
-    - echo "🧪 Running tests..."
-=======
     - 'echo "🧪 Running tests..."'
->>>>>>> main
     - go mod download
     - go vet ./...
     - go test -v ./...
@@ -109,42 +83,7 @@ test:
   when: manual
   only:
     - main
-    - develop
-    - /^feature\/.*$/
-    - /^bugfix\/.*$/
 
-<<<<<<< HEAD
-# Manual Deploy to DEV Environment
-deploy-dev:
-  stage: deploy-dev
-  image: golang:${GO_VERSION}
-  variables:
-    ENVIRONMENT: "dev"
-    BRANCH_NAME: "dev"
-  script:
-    - echo "🚀 Triggering GitHub Actions deployment to DEV environment..."
-    - echo "📡 Monitoring GitHub Actions workflow for branch: ${BRANCH_NAME}"
-    
-    # Build and run the monitor
-    - cd monitor
-    - go mod init github-monitor 2>/dev/null || true
-    - go mod tidy
-    - go build -o github-monitor main.go
-    
-    # Run the monitor with environment variables
-    - export GITHUB_TOKEN="${GITHUB_TOKEN}"
-    - export GITHUB_REPO="${GITHUB_REPO}"
-    - export GITLAB_TOKEN="${GITLAB_TOKEN}"
-    - export GITLAB_PROJECT_ID="${GITLAB_PROJECT_ID}"
-    - export BRANCH_NAME="${BRANCH_NAME}"
-    - export ENVIRONMENT="${ENVIRONMENT}"
-    - export POLL_INTERVAL="10s"
-    
-    # Start monitoring
-    - echo "🔍 Starting real-time GitHub Actions monitoring..."
-    - ./github-monitor
-    
-=======
 # Manual Deploy: DEV
 deploy-dev:
   stage: deploy-dev
@@ -168,137 +107,10 @@ deploy-prod:
     ENVIRONMENT: "prod"
     BRANCH_NAME: "main"
   <<: *deploy_template
->>>>>>> main
   artifacts:
     when: always
     paths:
       - monitor/gitlab-logs/
-<<<<<<< HEAD
-    expire_in: 1 week
-    reports:
-      junit: monitor/gitlab-logs/*.xml
-  when: manual
-  only:
-    - main
-
-# Manual Deploy to QA Environment
-deploy-qa:
-  stage: deploy-qa
-  image: golang:${GO_VERSION}
-  variables:
-    ENVIRONMENT: "qa"
-    BRANCH_NAME: "qa"
-  script:
-    - echo "🚀 Triggering GitHub Actions deployment to QA environment..."
-    - echo "📡 Monitoring GitHub Actions workflow for branch: ${BRANCH_NAME}"
-    
-    # Build and run the monitor
-    - cd monitor
-    - go mod init github-monitor 2>/dev/null || true
-    - go mod tidy
-    - go build -o github-monitor main.go
-    
-    # Run the monitor with environment variables
-    - export GITHUB_TOKEN="${GITHUB_TOKEN}"
-    - export GITHUB_REPO="${GITHUB_REPO}"
-    - export GITLAB_TOKEN="${GITLAB_TOKEN}"
-    - export GITLAB_PROJECT_ID="${GITLAB_PROJECT_ID}"
-    - export BRANCH_NAME="${BRANCH_NAME}"
-    - export ENVIRONMENT="${ENVIRONMENT}"
-    - export POLL_INTERVAL="10s"
-    
-    # Start monitoring
-    - echo "🔍 Starting real-time GitHub Actions monitoring..."
-    - ./github-monitor
-    
-  artifacts:
-    when: always
-    paths:
-      - monitor/gitlab-logs/
-    expire_in: 1 week
-  when: manual
-  only:
-    - main
-
-# Manual Deploy to PROD Environment
-deploy-prod:
-  stage: deploy-prod
-  image: golang:${GO_VERSION}
-  variables:
-    ENVIRONMENT: "prod"
-    BRANCH_NAME: "main"
-  script:
-    - echo "🚀 Triggering GitHub Actions deployment to PRODUCTION environment..."
-    - echo "📡 Monitoring GitHub Actions workflow for branch: ${BRANCH_NAME}"
-    - echo "⚠️ PRODUCTION DEPLOYMENT - Monitoring carefully..."
-    
-    # Build and run the monitor
-    - cd monitor
-    - go mod init github-monitor 2>/dev/null || true
-    - go mod tidy
-    - go build -o github-monitor main.go
-    
-    # Run the monitor with environment variables
-    - export GITHUB_TOKEN="${GITHUB_TOKEN}"
-    - export GITHUB_REPO="${GITHUB_REPO}"
-    - export GITLAB_TOKEN="${GITLAB_TOKEN}"
-    - export GITLAB_PROJECT_ID="${GITLAB_PROJECT_ID}"
-    - export BRANCH_NAME="${BRANCH_NAME}"
-    - export ENVIRONMENT="${ENVIRONMENT}"
-    - export POLL_INTERVAL="5s"  # More frequent polling for production
-    
-    # Start monitoring
-    - echo "🔍 Starting real-time GitHub Actions monitoring..."
-    - ./github-monitor
-    
-  artifacts:
-    when: always
-    paths:
-      - monitor/gitlab-logs/
-    expire_in: 1 month  # Keep prod logs longer
-  when: manual
-  only:
-    - main
-
-# Manual Deploy to NEXT Environment
-deploy-next:
-  stage: deploy-next
-  image: golang:${GO_VERSION}
-  variables:
-    ENVIRONMENT: "next"
-    BRANCH_NAME: "next"
-  script:
-    - echo "🚀 Triggering GitHub Actions deployment to NEXT environment..."
-    - echo "📡 Monitoring GitHub Actions workflow for branch: ${BRANCH_NAME}"
-    
-    # Build and run the monitor
-    - cd monitor
-    - go mod init github-monitor 2>/dev/null || true
-    - go mod tidy
-    - go build -o github-monitor main.go
-    
-    # Run the monitor with environment variables
-    - export GITHUB_TOKEN="${GITHUB_TOKEN}"
-    - export GITHUB_REPO="${GITHUB_REPO}"
-    - export GITLAB_TOKEN="${GITLAB_TOKEN}"
-    - export GITLAB_PROJECT_ID="${GITLAB_PROJECT_ID}"
-    - export BRANCH_NAME="${BRANCH_NAME}"
-    - export ENVIRONMENT="${ENVIRONMENT}"
-    - export POLL_INTERVAL="10s"
-    
-    # Start monitoring
-    - echo "🔍 Starting real-time GitHub Actions monitoring..."
-    - ./github-monitor
-    
-  artifacts:
-    when: always
-    paths:
-      - monitor/gitlab-logs/
-    expire_in: 1 week
-  when: manual
-  only:
-    - main
-=======
     expire_in: 1 month
 
 # Manual Deploy: NEXT
@@ -308,25 +120,13 @@ deploy-next:
     ENVIRONMENT: "next"
     BRANCH_NAME: "next"
   <<: *deploy_template
->>>>>>> main
 
 # Optional: Cleanup job
 cleanup:
   stage: .post
   image: alpine:latest
   script:
-<<<<<<< HEAD
-    - echo "🧹 Cleaning up temporary files..."
-    - rm -rf /tmp/github-monitor-*
-  when: always
-  allow_failure: true
-
-
-
-
-=======
     - 'echo "🧹 Cleaning up temporary files..."'
     - rm -rf /tmp/github-monitor-*
   when: always
   allow_failure: true
->>>>>>> main
