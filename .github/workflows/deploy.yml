@@ -1,4 +1,5 @@
 # .github/workflows/deploy.yml
+<<<<<<< HEAD
 # Multi-Environment GitHub Actions Deployment Workflow
 name: Multi-Environment Deployment
 
@@ -13,10 +14,22 @@ on:
     inputs:
       environment:
         description: 'Target environment'
+=======
+# Manual GitHub Actions workflow triggered by GitLab pipeline
+
+name: Multi-Environment Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment to deploy'
+>>>>>>> main
         required: true
         default: 'dev'
         type: choice
         options:
+<<<<<<< HEAD
         - dev
         - qa
         - prod
@@ -65,15 +78,45 @@ jobs:
     environment: development
     timeout-minutes: ${{ fromJson(needs.setup.outputs.deploy-timeout) }}
     
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+=======
+          - dev
+          - qa
+          - prod
+          - next
 
-      - name: Setup Go Environment
-        uses: actions/setup-go@v4
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.set-env.outputs.environment }}
+      deploy-timeout: ${{ steps.set-env.outputs.deploy-timeout }}
+>>>>>>> main
+    steps:
+      - name: Set environment & timeout
+        id: set-env
+        run: |
+          ENV="${{ inputs.environment }}"
+          case "$ENV" in
+            prod) TIMEOUT="20" ;;
+            qa) TIMEOUT="15" ;;
+            *) TIMEOUT="10" ;;
+          esac
+          echo "environment=$ENV" >> $GITHUB_OUTPUT
+          echo "deploy-timeout=$TIMEOUT" >> $GITHUB_OUTPUT
+
+  deploy:
+    needs: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ fromJson(needs.setup.outputs.deploy-timeout) }}
+    environment: ${{ needs.setup.outputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v4
         with:
           go-version: '1.21'
 
+<<<<<<< HEAD
       - name: Development Build & Test
         run: |
           echo "🏗️ DEV: Building and testing application..."
@@ -316,3 +359,26 @@ jobs:
           echo "⏱️ Total Duration: ${{ github.event.head_commit.timestamp }}"
           echo "✅ GitHub Actions deployment completed!"
           echo "🔗 Monitored by GitLab CI Real-time Monitor"
+=======
+      - name: Build & Test (${{ needs.setup.outputs.environment }})
+        run: |
+          go mod download
+          go build -o app main.go
+          go test -v ./...
+
+      - name: Deploy to ${{ needs.setup.outputs.environment }}
+        run: |
+          echo "🚀 Deploying to ${{ needs.setup.outputs.environment }} environment..."
+          sleep 45
+          echo "✅ Deployment complete!"
+
+  summary:
+    needs: [setup, deploy]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Deployment Summary
+        run: |
+          echo "📊 Environment: ${{ needs.setup.outputs.environment }}"
+          echo "✅ Deployment job completed."
+>>>>>>> main
