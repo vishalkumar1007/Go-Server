@@ -50,9 +50,25 @@ test:
     - /^feature\/.*$/
     - /^bugfix\/.*$/
 
-# Template for all deployment environments
-.deploy_template: &deploy_template
+# Template for all deployment environments (without script)
+.deploy_base: &deploy_base
   image: golang:${GO_VERSION}
+  artifacts:
+    when: always
+    paths:
+      - monitor/gitlab-logs/
+    expire_in: 1 week
+  when: manual
+  only:
+    - main
+
+# Manual Deploy: DEV
+deploy-dev:
+  stage: deploy-dev
+  variables:
+    ENVIRONMENT: "dev"
+    BRANCH_NAME: "dev"
+  <<: *deploy_base # Inherit common properties
   script:
     - echo "🚀 Triggering GitHub Actions deployment to ${ENVIRONMENT^^}..."
     - echo "📡 Triggering GitHub Workflow Dispatch via API..."
@@ -75,22 +91,6 @@ test:
     - export POLL_INTERVAL="10s"
     - echo "🔍 Starting real-time GitHub Actions monitoring..."
     - ./github-monitor
-  artifacts:
-    when: always
-    paths:
-      - monitor/gitlab-logs/
-    expire_in: 1 week
-  when: manual
-  only:
-    - main
-
-# Manual Deploy: DEV
-deploy-dev:
-  stage: deploy-dev
-  variables:
-    ENVIRONMENT: "dev"
-    BRANCH_NAME: "dev"
-  <<: *deploy_template
 
 # Manual Deploy: QA
 deploy-qa:
@@ -98,7 +98,29 @@ deploy-qa:
   variables:
     ENVIRONMENT: "qa"
     BRANCH_NAME: "qa"
-  <<: *deploy_template
+  <<: *deploy_base
+  script:
+    - echo "🚀 Triggering GitHub Actions deployment to ${ENVIRONMENT^^}..."
+    - echo "📡 Triggering GitHub Workflow Dispatch via API..."
+    - >
+      curl -s -X POST https://api.github.com/repos/${GITHUB_REPO}/actions/workflows/deploy.yml/dispatches
+      -H "Authorization: Bearer ${GITHUB_TOKEN}"
+      -H "Accept: application/vnd.github+json"
+      -d "{\"ref\":\"${BRANCH_NAME}\", \"inputs\":{\"environment\":\"${ENVIRONMENT}\"}}"
+    - echo "🖥️ Monitoring GitHub Actions workflow for branch: ${BRANCH_NAME}"
+    - cd monitor
+    - go mod init github-monitor 2>/dev/null || true
+    - go mod tidy
+    - go build -o github-monitor main.go
+    - export GITHUB_TOKEN="${GITHUB_TOKEN}"
+    - export GITHUB_REPO="${GITHUB_REPO}"
+    - export GITLAB_TOKEN="${GITLAB_TOKEN}"
+    - export GITLAB_PROJECT_ID="${GITLAB_PROJECT_ID}"
+    - export BRANCH_NAME="${BRANCH_NAME}"
+    - export ENVIRONMENT="${ENVIRONMENT}"
+    - export POLL_INTERVAL="10s"
+    - echo "🔍 Starting real-time GitHub Actions monitoring..."
+    - ./github-monitor
 
 # Manual Deploy: PROD
 deploy-prod:
@@ -106,7 +128,29 @@ deploy-prod:
   variables:
     ENVIRONMENT: "prod"
     BRANCH_NAME: "main"
-  <<: *deploy_template
+  <<: *deploy_base
+  script:
+    - echo "🚀 Triggering GitHub Actions deployment to ${ENVIRONMENT^^}..."
+    - echo "📡 Triggering GitHub Workflow Dispatch via API..."
+    - >
+      curl -s -X POST https://api.github.com/repos/${GITHUB_REPO}/actions/workflows/deploy.yml/dispatches
+      -H "Authorization: Bearer ${GITHUB_TOKEN}"
+      -H "Accept: application/vnd.github+json"
+      -d "{\"ref\":\"${BRANCH_NAME}\", \"inputs\":{\"environment\":\"${ENVIRONMENT}\"}}"
+    - echo "🖥️ Monitoring GitHub Actions workflow for branch: ${BRANCH_NAME}"
+    - cd monitor
+    - go mod init github-monitor 2>/dev/null || true
+    - go mod tidy
+    - go build -o github-monitor main.go
+    - export GITHUB_TOKEN="${GITHUB_TOKEN}"
+    - export GITHUB_REPO="${GITHUB_REPO}"
+    - export GITLAB_TOKEN="${GITLAB_TOKEN}"
+    - export GITLAB_PROJECT_ID="${GITLAB_PROJECT_ID}"
+    - export BRANCH_NAME="${BRANCH_NAME}"
+    - export ENVIRONMENT="${ENVIRONMENT}"
+    - export POLL_INTERVAL="10s"
+    - echo "🔍 Starting real-time GitHub Actions monitoring..."
+    - ./github-monitor
 
 # Manual Deploy: NEXT
 deploy-next:
@@ -114,4 +158,26 @@ deploy-next:
   variables:
     ENVIRONMENT: "next"
     BRANCH_NAME: "next"
-  <<: *deploy_template
+  <<: *deploy_base
+  script:
+    - echo "🚀 Triggering GitHub Actions deployment to ${ENVIRONMENT^^}..."
+    - echo "📡 Triggering GitHub Workflow Dispatch via API..."
+    - >
+      curl -s -X POST https://api.github.com/repos/${GITHUB_REPO}/actions/workflows/deploy.yml/dispatches
+      -H "Authorization: Bearer ${GITHUB_TOKEN}"
+      -H "Accept: application/vnd.github+json"
+      -d "{\"ref\":\"${BRANCH_NAME}\", \"inputs\":{\"environment\":\"${ENVIRONMENT}\"}}"
+    - echo "🖥️ Monitoring GitHub Actions workflow for branch: ${BRANCH_NAME}"
+    - cd monitor
+    - go mod init github-monitor 2>/dev/null || true
+    - go mod tidy
+    - go build -o github-monitor main.go
+    - export GITHUB_TOKEN="${GITHUB_TOKEN}"
+    - export GITHUB_REPO="${GITHUB_REPO}"
+    - export GITLAB_TOKEN="${GITLAB_TOKEN}"
+    - export GITLAB_PROJECT_ID="${GITLAB_PROJECT_ID}"
+    - export BRANCH_NAME="${BRANCH_NAME}"
+    - export ENVIRONMENT="${ENVIRONMENT}"
+    - export POLL_INTERVAL="10s"
+    - echo "🔍 Starting real-time GitHub Actions monitoring..."
+    - ./github-monitor
