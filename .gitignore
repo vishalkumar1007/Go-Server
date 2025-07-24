@@ -4,3 +4,5 @@ SETUP-INSTRUCTIONS.md
 search.txt
 github-action-status
 gitlab-logs-generate.txt
+
+.gitlab_backup.yml

@@ -13,6 +13,7 @@ variables:
   GO_VERSION: "1.21"
   GITHUB_REPO: "vishalkumar1007/Go-Server"
   GITLAB_PROJECT_ID: "71610967"
+  MONITOR_IMAGE: "vishal1007/monitor-github-action:latest"
 
 # Build Stage
 build:
@@ -26,7 +27,6 @@ build:
   artifacts:
     paths:
       - app
-      - monitor/
     expire_in: 1 hour
   only:
     - main
@@ -52,33 +52,38 @@ test:
 
 # Template for all deployment environments
 .deploy_template: &deploy_template
-  image: golang:${GO_VERSION}
+  image: docker:24.0.5
+  services:
+    - docker:24.0.5-dind
+  before_script:
+    - docker info
   script:
     - 'echo "🚀 Triggering GitHub Actions deployment to ${ENVIRONMENT^^}..."'
     - 'echo "📡 Triggering GitHub Workflow Dispatch via API..."'
     - |
-      curl -s -X POST "https://api.github.com/repos/${GITHUB_REPO}/actions/workflows/deploy.yml/dispatches" \
+      docker run --rm curlimages/curl:latest \
+        -s -X POST "https://api.github.com/repos/${GITHUB_REPO}/actions/workflows/deploy.yml/dispatches" \
         -H "Authorization: Bearer ${GITHUB_TOKEN}" \
         -H "Accept: application/vnd.github+json" \
         -d "{\"ref\":\"${BRANCH_NAME}\", \"inputs\":{\"environment\":\"${ENVIRONMENT}\"}}"
     - 'echo "🖥️ Monitoring GitHub Actions workflow for branch: ${BRANCH_NAME}"'
-    - cd monitor
-    - go mod init github-monitor 2>/dev/null || true
-    - go mod tidy
-    - go build -o github-monitor main.go
-    - export GITHUB_TOKEN="${GITHUB_TOKEN}"
-    - export GITHUB_REPO="${GITHUB_REPO}"
-    - export GITLAB_TOKEN="${GITLAB_TOKEN}"
-    - export GITLAB_PROJECT_ID="${GITLAB_PROJECT_ID}"
-    - export BRANCH_NAME="${BRANCH_NAME}"
-    - export ENVIRONMENT="${ENVIRONMENT}"
-    - 'export POLL_INTERVAL="10s"'
-    - 'echo "🔍 Starting real-time GitHub Actions monitoring..."'
-    - ./github-monitor
+    - 'echo "🔍 Starting real-time GitHub Actions monitoring using Docker image..."'
+    - mkdir -p gitlab-logs
+    - |
+      docker run --rm \
+        -e GITHUB_TOKEN="${GITHUB_TOKEN}" \
+        -e GITHUB_REPO="${GITHUB_REPO}" \
+        -e GITLAB_TOKEN="${GITLAB_TOKEN}" \
+        -e GITLAB_PROJECT_ID="${GITLAB_PROJECT_ID}" \
+        -e BRANCH_NAME="${BRANCH_NAME}" \
+        -e ENVIRONMENT="${ENVIRONMENT}" \
+        -e POLL_INTERVAL="10s" \
+        -v "$(pwd)/gitlab-logs:/app/gitlab-logs" \
+        ${MONITOR_IMAGE}
   artifacts:
     when: always
     paths:
-      - monitor/gitlab-logs/
+      - gitlab-logs/
     expire_in: 1 week
   when: manual
   only:
@@ -110,7 +115,7 @@ deploy-prod:
   artifacts:
     when: always
     paths:
-      - monitor/gitlab-logs/
+      - gitlab-logs/
     expire_in: 1 month
 
 # Manual Deploy: NEXT
