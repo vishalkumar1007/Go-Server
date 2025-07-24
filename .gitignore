@@ -6,3 +6,4 @@ github-action-status
 gitlab-logs-generate.txt
 
 .gitlab_backup.yml
+monitor
