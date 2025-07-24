@@ -58,7 +58,7 @@ test:
   before_script:
     - docker info
   script:
-    - 'echo "🚀 Triggering GitHub Actions deployment to ${ENVIRONMENT^^}..."'
+    - 'echo "🚀 Triggering GitHub Actions deployment to $(echo ${ENVIRONMENT} | tr ''[:lower:]'' ''[:upper:]'')..."'
     - 'echo "📡 Triggering GitHub Workflow Dispatch via API..."'
     - |
       docker run --rm curlimages/curl:latest \
@@ -78,7 +78,7 @@ test:
         -e BRANCH_NAME="${BRANCH_NAME}" \
         -e ENVIRONMENT="${ENVIRONMENT}" \
         -e POLL_INTERVAL="10s" \
-        -v "$(pwd)/gitlab-logs:/app/gitlab-logs" \
+        -v "$(pwd)/gitlab-logs:/gitlab-logs" \
         ${MONITOR_IMAGE}
   artifacts:
     when: always
